@@ -95,31 +95,38 @@ class Agent:
                    status="ok", data=changelog)
 
         # ⑤ 视觉自检（可选，一轮定向修复，不做开放循环）
+        # 注意：自检是加分项，失败（如模型不支持图片）不能拖垮已完成的排版结果。
         issues, applied = [], []
         if verify:
-            self._emit("视觉自检", "正在把排版结果渲染成图，交给视觉模型对照规范质检 ...")
-            from core.verify_visual import apply_fixes, verify_visual
-            png_dir = os.path.splitext(out_path)[0] + "_verify_render"
-            issues = verify_visual(out_path, spec, self._get_llm(), png_dir)
-            failed = [i for i in issues if not i["pass"]]
-            if not failed:
-                self._emit("视觉自检", f"自检通过：{len(issues)} 项检查全部符合规范", status="ok")
-            else:
-                self._emit("视觉自检",
-                           f"发现 {len(failed)} 项不符："
-                           + "、".join(f"{i['role']}.{i['field']}" for i in failed),
-                           status="warn", data=issues)
-                spec, applied = apply_fixes(spec, failed)
-                if applied:
-                    self._emit("视觉自检",
-                               f"已定向修复 {len(applied)} 项，正在重排 ...", status="warn")
-                    changelog = apply_format(target_path, spec, rolemap, out_path)
-                    write_report(changelog, spec, report_path)
-                    self._emit("视觉自检", "修复后重排完成", status="ok")
+            try:
+                self._emit("视觉自检", "正在把排版结果渲染成图，交给视觉模型对照规范质检 ...")
+                from core.verify_visual import apply_fixes, verify_visual
+                png_dir = os.path.splitext(out_path)[0] + "_verify_render"
+                issues = verify_visual(out_path, spec, self._get_llm(), png_dir)
+                failed = [i for i in issues if not i["pass"]]
+                if not failed:
+                    self._emit("视觉自检", f"自检通过：{len(issues)} 项检查全部符合规范", status="ok")
                 else:
                     self._emit("视觉自检",
-                               "这些问题无法安全自动修复，已保留在问题清单中供人工处理",
-                               status="warn")
+                               f"发现 {len(failed)} 项不符："
+                               + "、".join(f"{i['role']}.{i['field']}" for i in failed),
+                               status="warn", data=issues)
+                    spec, applied = apply_fixes(spec, failed)
+                    if applied:
+                        self._emit("视觉自检",
+                                   f"已定向修复 {len(applied)} 项，正在重排 ...", status="warn")
+                        changelog = apply_format(target_path, spec, rolemap, out_path)
+                        write_report(changelog, spec, report_path)
+                        self._emit("视觉自检", "修复后重排完成", status="ok")
+                    else:
+                        self._emit("视觉自检",
+                                   "这些问题无法安全自动修复，已保留在问题清单中供人工处理",
+                                   status="warn")
+            except Exception as e:  # noqa: BLE001 —— 自检失败降级为警告
+                self._emit("视觉自检",
+                           f"自检跳过：{e}（排版结果不受影响；"
+                           "如需视觉自检请配置支持图片输入的 LLM_VISION_MODEL）",
+                           status="err")
 
         self._emit("完成", "全部流程结束", status="ok")
         return {

@@ -102,6 +102,13 @@ def extract_rules_from_template(template_path, rolemap):
         rule.setdefault("alignment", "justify" if role == "body" else "left")
 
     spec = {"page": _page_section(doc), "roles": roles}
+    # 行网格一致性：模板里的 docGrid 常是 Word 默认值（如 15.6pt），与正文实际
+    # 固定行距不一致时，网格会干扰排版。正文有明确固定行距时，以正文行距为准。
+    body_ls = (roles.get("body") or {}).get("line_spacing") or {}
+    if body_ls.get("type") == "exact" and body_ls.get("pt"):
+        grid = spec["page"].setdefault("line_grid", {})
+        if grid.get("line_pt") != body_ls["pt"]:
+            grid["line_pt"] = body_ls["pt"]
     validate_spec(spec)
     return spec
 

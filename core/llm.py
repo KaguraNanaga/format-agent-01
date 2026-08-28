@@ -1,8 +1,14 @@
 # OpenAI 兼容 LLM 客户端 —— 不引框架，直接 requests 打 HTTP。
-# 配置走环境变量（场地 tokens 到场再填，自备 key 兜底）：
-#   LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_VISION_MODEL
-#   Kimi: https://api.moonshot.cn/v1 ；GLM: https://open.bigmodel.cn/api/paas/v4
-# 约定：temperature=0；超时 60s；指数退避重试 <=2 次。
+# 配置走环境变量（也可写在项目根目录 .env 文件里，.env 已被 gitignore）：
+#   LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_VISION_MODEL / LLM_TIMEOUT
+#   中转站（VibeToken）: https://vibetoken.cn/v1
+# 约定：temperature=0；超时默认 120s；指数退避重试 <=2 次。
+#
+# 已知的中转站适配（实测踩出来的坑）：
+#   1. 某些模型不支持 response_format JSON 模式（400）→ 自动去掉重试
+#   2. VibeToken 的上游无法拉取 data:base64 内联图片（500 "Error fetching file"）
+#      → 视觉调用自动把图片上传到临时图床，改用 https URL 重试（见 _upload_image）
+#   3. 推理模型（如 kimi-k3）可能只回 reasoning_content、content 为空 → 视为失败重试
 
 import base64
 import json
@@ -12,18 +18,86 @@ import time
 import requests
 
 
+def load_dotenv(path=".env", override=False):
+    """极简 .env 加载：KEY=VALUE 逐行读。
+    override=False（默认）：不覆盖已存在的环境变量；
+    override=True：以 .env 为准（Streamlit 这类长驻进程每次重跑时刷新配置用）。
+    """
+    if not os.path.exists(path):
+        return
+    setter = os.environ.__setitem__ if override else os.environ.setdefault
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            setter(k.strip(), v.strip().strip('"').strip("'"))
+
+
+load_dotenv()
+
+
 class LLMError(Exception):
     """LLM 调用失败（网络/HTTP/解析），重试耗尽后抛出。"""
 
 
+def _http_error(resp):
+    """构造带响应体的错误信息（中转站的错误细节都在 body 里，不看 body 没法排查）。"""
+    return LLMError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+
+
+def _upload_image(path, timeout=60):
+    """把本地图片传到临时公开图床，返回可直接拉取的 https URL。
+    供不支持 data: 内联图片的中转站用。
+    注意：图片会变成任何人可访问的公网 URL，含敏感内容的文档不要用这条路。
+    依次尝试 litterbox(catbox 临时版) → catbox.moe → 0x0.st。
+    """
+    errors = []
+    # litterbox.catbox.moe（1 小时有效期，给视觉调用用正好；返回直链）
+    try:
+        with open(path, "rb") as f:
+            r = requests.post("https://litterbox.catbox.moe/resources/internals/api.php",
+                              data={"reqtype": "fileupload", "time": "1h"},
+                              files={"fileToUpload": f}, timeout=timeout)
+        if r.ok and r.text.strip().startswith("http"):
+            return r.text.strip()
+        errors.append(f"litterbox: HTTP {r.status_code} {r.text[:100]}")
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"litterbox: {e}")
+    # catbox.moe
+    try:
+        with open(path, "rb") as f:
+            r = requests.post("https://catbox.moe/user/api.php",
+                              data={"reqtype": "fileupload"},
+                              files={"fileToUpload": f}, timeout=timeout)
+        if r.ok and r.text.strip().startswith("http"):
+            return r.text.strip()
+        errors.append(f"catbox: HTTP {r.status_code} {r.text[:100]}")
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"catbox: {e}")
+    # 0x0.st
+    try:
+        with open(path, "rb") as f:
+            r = requests.post("https://0x0.st",
+                              files={"file": f},
+                              headers={"User-Agent": "format-agent/1.0"}, timeout=timeout)
+        if r.ok and r.text.strip().startswith("http"):
+            return r.text.strip()
+        errors.append(f"0x0.st: HTTP {r.status_code} {r.text[:100]}")
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"0x0.st: {e}")
+    raise LLMError("图片上传图床失败（" + "；".join(errors) + "）")
+
+
 class LLMClient:
     def __init__(self, base_url=None, api_key=None, model=None, vision_model=None,
-                 timeout=60, max_retries=2, on_event=None):
+                 timeout=None, max_retries=2, on_event=None):
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL") or "").rstrip("/")
         self.api_key = api_key or os.environ.get("LLM_API_KEY") or ""
         self.model = model or os.environ.get("LLM_MODEL") or ""
         self.vision_model = vision_model or os.environ.get("LLM_VISION_MODEL") or self.model
-        self.timeout = timeout
+        self.timeout = timeout or int(os.environ.get("LLM_TIMEOUT", "120"))
         self.max_retries = max_retries
         self.on_event = on_event or (lambda msg: None)
         if not self.base_url or not self.api_key or not self.model:
@@ -47,7 +121,31 @@ class LLMClient:
                     time.sleep(2 ** attempt)  # 1s, 2s
         raise LLMError(f"LLM 调用失败（重试 {self.max_retries} 次后放弃）: {last_err}")
 
-    def _chat(self, prompt, model=None, json_mode=True, image_paths=None):
+    def chat_vision_json(self, prompt, image_paths, model=None):
+        """带图调用（视觉模型）：prompt + png 列表 → 解析后的 JSON 对象。
+        默认用 LLM_VISION_MODEL。先用 data:base64 内联图片；若中转站报
+        "Error fetching file"（不会拉 data URL），自动上传临时图床换 https URL 重试。
+        """
+        use_urls = False  # 第二次起改用图床 URL
+        last_err = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                text = self._chat(prompt, model=model or self.vision_model,
+                                  json_mode=True, image_paths=image_paths,
+                                  image_as_url=use_urls)
+                return _parse_json(text)
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+                if not use_urls and "Error fetching file" in str(e):
+                    use_urls = True
+                    self.on_event("中转站不支持内联图片，改为上传临时图床后用 URL 调用"
+                                  "（注意：渲染图会变成公网可访问的临时链接）")
+                if attempt < self.max_retries:
+                    self.on_event(f"视觉模型调用失败（{e}），{2 ** attempt}s 后重试（第 {attempt + 1} 次）")
+                    time.sleep(2 ** attempt)
+        raise LLMError(f"视觉模型调用失败（重试 {self.max_retries} 次后放弃）: {last_err}")
+
+    def _chat(self, prompt, model=None, json_mode=True, image_paths=None, image_as_url=False):
         url = f"{self.base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -56,12 +154,13 @@ class LLMClient:
         if image_paths:
             content = [{"type": "text", "text": prompt}]
             for path in image_paths:
-                with open(path, "rb") as f:
-                    b64 = base64.b64encode(f.read()).decode("ascii")
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{b64}"},
-                })
+                if image_as_url:
+                    img_url = _upload_image(path, timeout=self.timeout)
+                else:
+                    with open(path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode("ascii")
+                    img_url = f"data:image/png;base64,{b64}"
+                content.append({"type": "image_url", "image_url": {"url": img_url}})
             messages = [{"role": "user", "content": content}]
         else:
             messages = [{"role": "user", "content": prompt}]
@@ -73,26 +172,19 @@ class LLMClient:
         if json_mode:
             body["response_format"] = {"type": "json_object"}
         resp = requests.post(url, headers=headers, json=body, timeout=self.timeout)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
-
-    def chat_vision_json(self, prompt, image_paths, model=None):
-        """带图调用（视觉模型）：prompt + png 列表 → 解析后的 JSON 对象。
-        默认用 LLM_VISION_MODEL，重试策略同 chat_json。
-        """
-        last_err = None
-        for attempt in range(self.max_retries + 1):
-            try:
-                text = self._chat(prompt, model=model or self.vision_model,
-                                  json_mode=True, image_paths=image_paths)
-                return _parse_json(text)
-            except Exception as e:  # noqa: BLE001
-                last_err = e
-                if attempt < self.max_retries:
-                    self.on_event(f"视觉模型调用失败（{e}），{2 ** attempt}s 后重试（第 {attempt + 1} 次）")
-                    time.sleep(2 ** attempt)
-        raise LLMError(f"视觉模型调用失败（重试 {self.max_retries} 次后放弃）: {last_err}")
+        # 中转站后端的某些模型不支持 JSON 模式：400 且报错提到 response_format 时，
+        # 去掉该字段重试一次（输出仍由 _parse_json 兜底解析）。
+        if resp.status_code == 400 and json_mode and "response_format" in resp.text:
+            body.pop("response_format", None)
+            resp = requests.post(url, headers=headers, json=body, timeout=self.timeout)
+        if not resp.ok:
+            raise _http_error(resp)
+        message = resp.json()["choices"][0]["message"]
+        text = message.get("content")
+        if not text:
+            # 推理模型可能只回 reasoning_content；拿不到正文视为失败，让重试兜底
+            raise LLMError("模型返回了空 content（可能 token 被推理过程耗尽）")
+        return text
 
 
 def _parse_json(text):

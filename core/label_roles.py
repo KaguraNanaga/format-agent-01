@@ -13,7 +13,8 @@ PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，�
 判断依据: 文字内容、位置顺序、当前格式提示。落款单位通常在末尾、署名感强;
 日期含"年/月/日"; 标题通常在最前且独立成行。
 输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment}}]，
-输出严格为 [{{"idx": 0, "role": "title"}}, ...]，必须覆盖所有输入 idx，不多不少。
+输出严格为 {{"roles": [{{"idx": 0, "role": "title"}}, ...]}} 的 JSON 对象，
+roles 数组必须覆盖所有输入 idx，不多不少。
 段落清单：
 {paragraphs}"""
 
@@ -25,9 +26,20 @@ _ROLE_SET = set(BASE_ROLES)
 
 
 def _validate_rolemap(items, expected_idxs):
-    """校验 LLM 输出：结构、role 合法、idx 恰好全覆盖。返回 dict[int,str] 或抛 ValueError。"""
+    """校验 LLM 输出：结构、role 合法、idx 恰好全覆盖。返回 dict[int,str] 或抛 ValueError。
+    兼容两种形态：裸数组 [...]（老 prompt），或包一层对象 {"roles": [...]}（JSON 模式友好）。
+    """
+    if isinstance(items, dict):
+        # 优先认 "roles" 键，其次取第一个 list 类型的值
+        if isinstance(items.get("roles"), list):
+            items = items["roles"]
+        else:
+            for v in items.values():
+                if isinstance(v, list):
+                    items = v
+                    break
     if not isinstance(items, list):
-        raise ValueError("输出必须是 JSON 数组")
+        raise ValueError("输出必须是 JSON 数组或含数组的 JSON 对象")
     rolemap = {}
     for it in items:
         if not isinstance(it, dict) or "idx" not in it or "role" not in it:
