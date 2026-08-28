@@ -1,0 +1,93 @@
+# 段落清单 → RoleMap（PLAN.md 6.2 prompt）。
+# label_roles(paragraphs, llm) -> dict[int, str]；每 40 段一批；
+# 校验 role ∈ 枚举、idx 全覆盖；失败重试 <=2 次。
+
+import json
+
+from core.schema import BASE_ROLES
+
+BATCH_SIZE = 40
+
+PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，角色只能从枚举里选:
+{roles}。
+判断依据: 文字内容、位置顺序、当前格式提示。落款单位通常在末尾、署名感强;
+日期含"年/月/日"; 标题通常在最前且独立成行。
+输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment}}]，
+输出严格为 [{{"idx": 0, "role": "title"}}, ...]，必须覆盖所有输入 idx，不多不少。
+段落清单：
+{paragraphs}"""
+
+RETRY_SUFFIX = """
+你上一次的输出校验未通过，错误：{error}
+请重新输出完整 JSON 数组，必须恰好覆盖这些 idx: {idx_list}。"""
+
+_ROLE_SET = set(BASE_ROLES)
+
+
+def _validate_rolemap(items, expected_idxs):
+    """校验 LLM 输出：结构、role 合法、idx 恰好全覆盖。返回 dict[int,str] 或抛 ValueError。"""
+    if not isinstance(items, list):
+        raise ValueError("输出必须是 JSON 数组")
+    rolemap = {}
+    for it in items:
+        if not isinstance(it, dict) or "idx" not in it or "role" not in it:
+            raise ValueError(f"数组元素必须是 {{idx, role}} 对象，收到: {it!r}")
+        idx, role = it["idx"], it["role"]
+        if role not in _ROLE_SET:
+            raise ValueError(f"非法角色 {role!r}（idx={idx}）")
+        rolemap[idx] = role
+    got, want = set(rolemap), set(expected_idxs)
+    if got != want:
+        missing = sorted(want - got)
+        extra = sorted(got - want)
+        raise ValueError(f"idx 覆盖不符：缺少 {missing}，多出 {extra}")
+    return rolemap
+
+
+def _label_batch(batch, llm, max_retries=2, on_event=None):
+    on_event = on_event or (lambda msg: None)
+    expected = [p["idx"] for p in batch]
+    payload = json.dumps(
+        [{k: p[k] for k in ("idx", "text", "size_pt", "bold", "alignment")} for p in batch],
+        ensure_ascii=False)
+    prompt = PROMPT_TEMPLATE.format(roles="/".join(BASE_ROLES), paragraphs=payload)
+    last_err = None
+    for attempt in range(max_retries + 1):
+        try:
+            items = llm.chat_json(prompt)
+            return _validate_rolemap(items, expected)
+        except (ValueError, KeyError, TypeError) as e:
+            last_err = e
+            if attempt < max_retries:
+                on_event(f"角色标注未通过校验（{e}），正在要求模型重标")
+                prompt = (PROMPT_TEMPLATE.format(roles="/".join(BASE_ROLES), paragraphs=payload)
+                          + RETRY_SUFFIX.format(error=e, idx_list=expected))
+    raise ValueError(f"角色标注失败（重试 {max_retries} 次后放弃）: {last_err}")
+
+
+def label_roles(paragraphs, llm, on_event=None):
+    """整篇段落清单 → {idx: role}。表格内段落（in_table=True）不送标注，直接标 other。"""
+    on_event = on_event or (lambda msg: None)
+    rolemap = {}
+    todo = []
+    for p in paragraphs:
+        if p.get("in_table"):
+            rolemap[p["idx"]] = "other"
+        else:
+            todo.append(p)
+    n_batches = (len(todo) + BATCH_SIZE - 1) // BATCH_SIZE
+    for i in range(0, len(todo), BATCH_SIZE):
+        batch_no = i // BATCH_SIZE + 1
+        if n_batches > 1:
+            on_event(f"标注第 {batch_no}/{n_batches} 批段落（{len(todo[i:i + BATCH_SIZE])} 段）")
+        rolemap.update(_label_batch(todo[i:i + BATCH_SIZE], llm, on_event=on_event))
+    return rolemap
+
+
+if __name__ == "__main__":
+    import sys
+    from core.extract import extract_paragraphs
+    from core.llm import LLMClient
+    paras = extract_paragraphs(sys.argv[1])
+    rm = label_roles(paras, LLMClient())
+    print(json.dumps(rm, ensure_ascii=False, indent=2))

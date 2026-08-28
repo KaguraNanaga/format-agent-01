@@ -3,6 +3,19 @@
 > 本文件自包含：新 session 只需读完本文件 + 三个已验证模块即可开工。
 > 比赛 8-28 晚 18:00 已开始；目标：**今晚做出端到端 demo**，明天做视觉验证和演示打磨。
 
+## 0. 当前状态（8-28 晚已提前完成）
+
+今晚排期全部完成，且明天的两项也提前做完：
+
+- ✅ `core/`：llm / schema / extract / rules_from_text / rules_from_template / label_roles /
+  apply / verify_visual / agent（事件流编排器，CLI 和界面共用）
+- ✅ `main.py` CLI、`app.py` Streamlit 演示界面（Agent 工作日志实时直播 + 一键内置示例）
+- ✅ 测试素材 `assets/`（messy.docx + spec.txt + 标准答案 JSON），端到端+渲染图验证通过
+- ⏳ 真模型联调：代码就绪，等 `LLM_BASE_URL/LLM_API_KEY/LLM_MODEL/LLM_VISION_MODEL` 配好即可
+- 明天只剩：真机联调 → 演示排练（14:30 冻结）→ 有余力再做视觉读模板加分项
+
+模板读规则做成了**纯确定性方案**（effective_props 读生效属性），不依赖视觉模型。
+
 ## 1. 目标与演示故事
 
 用户丢进两样东西：**格式来源**（一段规范文字，或一份模板 docx）+ **待排版的目标文档**，
@@ -41,13 +54,17 @@ format-agent/
     executor.py            ← 已验证，直接复制自源仓库 docs/hackathon-executor.py
     effective_props.py     ← 已验证，直接复制自源仓库 docs/hackathon-effective-props.py
     render.py              ← 已验证，直接复制自源仓库 docs/hackathon-render.py
-    schema.py              ← 今晚写：FormatSpec 校验器
-    llm.py                 ← 今晚写：OpenAI 兼容客户端 + 重试
-    extract.py             ← 今晚写：docx → 段落清单
-    rules_from_text.py     ← 今晚写：规范文字 → FormatSpec
-    label_roles.py         ← 今晚写：段落清单 → RoleMap
-    verify_visual.py       ← 明天写：视觉验证
-  main.py                  ← CLI 串全流程
+    schema.py              ← FormatSpec 校验器 ✅
+    llm.py                 ← OpenAI 兼容客户端 + 重试 + 视觉调用 ✅
+    extract.py             ← docx → 段落清单 ✅
+    rules_from_text.py     ← 规范文字 → FormatSpec ✅
+    rules_from_template.py ← 模板 docx → FormatSpec（确定性，不依赖 VLM）✅
+    label_roles.py         ← 段落清单 → RoleMap ✅
+    apply.py               ← 执行器接线 + 对照报告 ✅
+    verify_visual.py       ← 视觉验证 + 一轮定向修复 ✅
+    agent.py               ← 事件流编排器（CLI/界面共用）✅
+  main.py                  ← CLI（薄壳，走 agent.py）
+  app.py                   ← Streamlit 演示界面（Agent 工作日志直播）
   assets/                  ← 测试文档、规范文字、人工标准答案 JSON
   out/                     ← 输出
 ```
