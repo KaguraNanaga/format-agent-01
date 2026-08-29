@@ -1,0 +1,59 @@
+{
+  "page": {
+    "margin": {
+      "top_mm": 25.4,
+      "bottom_mm": 25.4,
+      "left_mm": 31.8,
+      "right_mm": 31.8
+    },
+    "line_grid": {
+      "line_pt": 18.0
+    }
+  },
+  "roles": {
+    "title": {
+      "font_eastasia": "微软雅黑",
+      "size_pt": 16.0,
+      "bold": true,
+      "font_ascii": "微软雅黑",
+      "alignment": "center",
+      "line_spacing": {
+        "type": "multiple",
+        "pt": 1.5
+      }
+    },
+    "subtitle": {
+      "font_eastasia": "微软雅黑",
+      "size_pt": 11.0,
+      "bold": false,
+      "font_ascii": "微软雅黑",
+      "alignment": "center",
+      "line_spacing": {
+        "type": "multiple",
+        "pt": 1.5
+      }
+    },
+    "body": {
+      "font_eastasia": "微软雅黑",
+      "size_pt": 11.0,
+      "bold": false,
+      "font_ascii": "微软雅黑",
+      "alignment": "left",
+      "line_spacing": {
+        "type": "multiple",
+        "pt": 1.5
+      }
+    },
+    "date": {
+      "font_eastasia": "微软雅黑",
+      "size_pt": 11.0,
+      "bold": false,
+      "font_ascii": "微软雅黑",
+      "alignment": "right",
+      "line_spacing": {
+        "type": "multiple",
+        "pt": 1.5
+      }
+    }
+  }
+}

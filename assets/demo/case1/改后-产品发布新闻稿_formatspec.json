@@ -1,0 +1,40 @@
+{
+  "page": {
+    "size": "A4",
+    "margin": {
+      "top_mm": 25.4,
+      "bottom_mm": 25.4,
+      "left_mm": 31.8,
+      "right_mm": 31.8
+    }
+  },
+  "roles": {
+    "title": {
+      "font_eastasia": "黑体",
+      "size_pt": 22,
+      "bold": true,
+      "alignment": "center"
+    },
+    "body": {
+      "font_eastasia": "宋体",
+      "font_ascii": "Times New Roman",
+      "size_pt": 12,
+      "alignment": "justify",
+      "first_line_indent_chars": 2,
+      "line_spacing": {
+        "type": "multiple",
+        "pt": 1.5
+      }
+    },
+    "signature": {
+      "font_eastasia": "宋体",
+      "size_pt": 12,
+      "alignment": "right"
+    },
+    "date": {
+      "font_eastasia": "宋体",
+      "size_pt": 12,
+      "alignment": "right"
+    }
+  }
+}
