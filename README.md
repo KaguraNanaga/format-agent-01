@@ -93,6 +93,20 @@ python main.py --template assets/party_meeting.docx --target assets/messy.docx -
 python main.py --spec assets/spec.txt --target assets/messy.docx --out out/排版后.docx --verify
 ```
 
+### 作为 Skill 接入你的 Agent（推荐）
+
+本项目同时是一个自包含的 Agent Skill（`skills/format-agent/`）。不需要部署任何界面，
+直接把仓库链接发给你的 Agent 即可安装调用，例如对它说：
+
+> 帮我安装这个 skill：https://github.com/KaguraNanaga/format-agent-01/tree/main/skills/format-agent
+> 然后按《规范文字.txt》的要求，把"待排版.docx"重排一下。
+
+Agent 会读取其中的 SKILL.md，自行完成依赖安装、规范理解和排版执行，
+产出排版稿、修订模式文档和修改对照报告。
+
+国内用户常见的 Agent 环境（支持 Skill/插件机制）均可使用：
+Kimi Code、腾讯 WorkBuddy、字节 Trae、阿里 Qoder、百度 Comate 等。
+
 ### 演示界面
 
 ```bash
@@ -124,10 +138,6 @@ python main.py --spec-json assets/spec_std.json --rolemap-json assets/rolemap_st
 | case4 | Word 自动编号 | Word 模板 | 党委会议题议案（已脱敏为虚构主体） |
 
 每个案例含：改前文档、格式规范（文字或模板）、改后文档、预览图、修订稿、对照报告。
-
-## 作为 Skill 复用
-
-`skills/format-agent/` 是**自包含的技能包**（SKILL.md + 完整流水线 + 示例），拷到任何支持 Skill 的 agent 环境里即可直接调用，详见其中的 SKILL.md。
 
 ## 项目结构
 
