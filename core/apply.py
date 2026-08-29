@@ -15,13 +15,16 @@ from core.style_set import (
     ensure_role_styles,
     resolve_target_body_style,
 )
+from core.track_changes import mark_paragraph_revision, snapshot_paragraph
 
 
-def apply_format(docx_path, spec, rolemap, out_path):
+def apply_format(docx_path, spec, rolemap, out_path, track=False):
     """应用 FormatSpec × RoleMap，输出 docx，返回 changelog list[dict]。
     rolemap: {idx: role}（idx 对应 extract.py 的段落序号）。
-    模板未明确指定的角色统一绑定目标文档原有正文样式，不借用 other 规则。
+    模板未明确指定的角色统一与正文保持一致（套用 body 规则与样式）。
     表格内段落（idx >= len(doc.paragraphs)）v1 跳过。
+    track=True 时输出修订模式文档：段落/字符格式改动以 w:pPrChange /
+    w:rPrChange 记录，Word 审阅视图可见。
     """
     doc = Document(docx_path)
     roles = spec.get("roles", {})
@@ -48,10 +51,12 @@ def apply_format(docx_path, spec, rolemap, out_path):
 
     # ---- 段落级 ----
     changelog = []
+    rev_id = 1
     for idx, p in enumerate(doc.paragraphs):
         role = rolemap.get(idx, rolemap.get(str(idx)))
         if role is None:
             continue  # 未被标注的段落不动
+        snapshot = snapshot_paragraph(p) if track else None
         if role in roles:
             rule = roles[role]
             style = role_styles[role]
@@ -66,6 +71,8 @@ def apply_format(docx_path, spec, rolemap, out_path):
             changed = apply_named_style(p, body_style, body_rule, role="body")
             style = body_style
             fallback_to_target_body = True
+        if track:
+            rev_id = mark_paragraph_revision(p, snapshot, rev_id_start=rev_id)
         changelog.append({
             "idx": idx,
             "role": role,

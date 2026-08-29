@@ -90,6 +90,13 @@ class Agent:
         self._emit("执行排版", "正在按 FormatSpec × RoleMap 逐段改写文档（确定性代码，AI 不碰 docx）...")
         changelog = apply_format(target_path, spec, rolemap, out_path)
         write_report(changelog, spec, report_path)
+        # 同步产出：docx 检测报告 + 修订模式文档（Word 审阅视图可见改动）
+        from core.report_docx import build_report_docx
+        base = os.path.splitext(out_path)[0]
+        report_docx_path = base + "_report.docx"
+        build_report_docx(changelog, spec, report_docx_path)
+        tracked_path = base + "_tracked.docx"
+        apply_format(target_path, spec, rolemap, tracked_path, track=True)
         n_changed = sum(1 for c in changelog if c["changed_fields"])
         n_styles = len({c.get("style_name") for c in changelog if c.get("style_name")})
         self._emit("执行排版",
@@ -123,6 +130,9 @@ class Agent:
                                    f"已定向修复 {len(applied)} 项，正在重排 ...", status="warn")
                         changelog = apply_format(target_path, spec, rolemap, out_path)
                         write_report(changelog, spec, report_path)
+                        from core.report_docx import build_report_docx
+                        build_report_docx(changelog, spec, report_docx_path)
+                        apply_format(target_path, spec, rolemap, tracked_path, track=True)
                         self._emit("视觉自检", "修复后重排完成", status="ok")
                     else:
                         self._emit("视觉自检",
@@ -161,4 +171,5 @@ class Agent:
             "stylemap": stylemap, "changelog": changelog,
             "issues": issues, "applied_fixes": applied,
             "out_path": out_path, "report_path": report_path,
+            "report_docx_path": report_docx_path, "tracked_path": tracked_path,
         }

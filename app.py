@@ -953,9 +953,24 @@ if run and can_run:
                 width="stretch",
                 type="primary",
             )
-        with open(result["report_path"], "rb") as handle:
+        with open(result["tracked_path"], "rb") as handle:
             download_right.download_button(
-                "下载修改报告",
+                "下载修订模式 DOCX（审阅视图可见改动）",
+                handle.read(),
+                "formatted_tracked.docx",
+                width="stretch",
+            )
+        report_left, report_right = st.columns(2)
+        with open(result["report_docx_path"], "rb") as handle:
+            report_left.download_button(
+                "下载修改报告 DOCX",
+                handle.read(),
+                "format-report.docx",
+                width="stretch",
+            )
+        with open(result["report_path"], "rb") as handle:
+            report_right.download_button(
+                "下载修改报告 Markdown",
                 handle.read(),
                 "format-report.md",
                 width="stretch",
