@@ -58,15 +58,13 @@ def apply_format(docx_path, spec, rolemap, out_path):
             changed = apply_named_style(p, style, rule, role=role)
             fallback_to_target_body = False
         else:
-            # 只替换 pStyle：真实自动编号、段落直接格式和 run 内强调均保留；
-            # 仅清掉 numId=0/ilvl=-1 这类会遮蔽正文缩进的“取消编号”残留。
-            # 即使模板定义了 other，也不能把缺失的 date/signature 等角色借给它。
-            invalid_numbering_removed = clear_invalid_numbering_override(p)
-            p.style = target_body_style
-            style = target_body_style
-            changed = ["paragraph_style", "fallback_to_target_body"]
-            if invalid_numbering_removed:
-                changed.append("invalid_numbering_removed")
+            # 模板未规定的角色与正文保持一致：套用 body 的规则和命名样式，
+            # 同时清掉会遮蔽样式的直接格式（如原文自带的加粗/异体字）。
+            # 真实自动编号保留（body 不在清编号集合内），仅清“取消编号”残留。
+            body_rule = roles.get("body", {})
+            body_style = role_styles.get("body", target_body_style)
+            changed = apply_named_style(p, body_style, body_rule, role="body")
+            style = body_style
             fallback_to_target_body = True
         changelog.append({
             "idx": idx,

@@ -51,6 +51,22 @@ def _looks_like_body_style(paragraph):
     )
 
 
+def _auto_number_heading_role(paragraph):
+    """真自动编号（文字里没有前缀）的标题惯例，与手工前缀的判定保持一致：
+    chineseCounting "%1、"（显示为"一、"）→ heading_1；
+    level_text 为 "（%1）" 形态（显示为"（一）"）→ heading_2。
+    只在调用方确认"短行、非完整句"之后调用；decimal 等列表编号返回 None。
+    """
+    fmt = str((paragraph or {}).get("num_format") or "").strip()
+    level_text = str((paragraph or {}).get("level_text") or "")
+    if fmt in ("chineseCounting", "chineseCountingThousand", "chineseLegalSimplified") \
+            or re.search(r"%1\s*、", level_text):
+        return "heading_1"
+    if re.search(r"[（(]\s*%1\s*[）)]", level_text):
+        return "heading_2"
+    return None
+
+
 def _numbered_body_evidence(paragraph):
     """判断数字段是否有足够证据应作为正文列表项。"""
     if not paragraph:
@@ -105,6 +121,10 @@ def regex_role(text, paragraph=None):
             return "body"
         if metadata_heading:
             return metadata_heading
+        # 公文标题编号惯例（一、/（一））优先于"正文列表"推断
+        auto_heading = _auto_number_heading_role(paragraph)
+        if auto_heading:
+            return auto_heading
         if _numbered_body_evidence(paragraph):
             return "body"
 

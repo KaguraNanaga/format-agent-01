@@ -269,15 +269,16 @@ with tempfile.TemporaryDirectory() as td:
     assert body_ind.get(qn("w:firstLineChars")) == "200"
     assert fallback_result.paragraphs[2]._p.pPr.find(qn("w:ind")) is None
 
-    # 缺失角色回退：同样清除取消编号，但保留文字与 run 强调。
-    assert fallback_result.paragraphs[3].style.style_id == resolved_body_id
+    # 缺失角色回退：与正文保持一致（套用 FormatAgentBody 的规则），
+    # 文字保留、取消编号清除；bold 未被 body 规则管控，run 强调保留。
+    assert fallback_result.paragraphs[3].style.style_id == style_id_for_role("body")
     assert fallback_result.paragraphs[3].text == "1. 手工日期文本"
     assert fallback_result.paragraphs[3]._p.pPr.find(qn("w:numPr")) is None
-    target_ind = fallback_result.paragraphs[3].style.element.find(qn("w:pPr")).find(qn("w:ind"))
-    assert target_ind.get(qn("w:firstLine")) == str(Pt(24).twips)
+    fallback_body_ind = fallback_result.paragraphs[3].style.element.find(qn("w:pPr")).find(qn("w:ind"))
+    assert fallback_body_ind.get(qn("w:firstLineChars")) == "200"
 
-    # 真正的 numId>0 自动编号在目标正文回退中必须完整保留。
-    assert fallback_result.paragraphs[4].style.style_id == resolved_body_id
+    # 真正的 numId>0 自动编号在缺失角色回退中同样完整保留。
+    assert fallback_result.paragraphs[4].style.style_id == style_id_for_role("body")
     assert fallback_result.paragraphs[5].style.style_id == style_id_for_role("other")
     fallback_numpr = fallback_result.paragraphs[3]._p.pPr.find(qn("w:numPr"))
     assert fallback_numpr is None
@@ -288,7 +289,7 @@ with tempfile.TemporaryDirectory() as td:
     assert fallback_rpr.find(qn("w:b")) is not None
     date_change = next(c for c in fallback_changes if c["idx"] == 3)
     assert date_change["fallback_to_target_body"] is True
-    assert date_change["style_name"] == "目标正文"
+    assert date_change["style_name"] == "格式正文"
     assert "invalid_numbering_removed" in date_change["changed_fields"]
     body_change = next(c for c in fallback_changes if c["idx"] == 2)
     assert "invalid_numbering_removed" in body_change["changed_fields"]
@@ -322,7 +323,8 @@ with tempfile.TemporaryDirectory() as td:
         s.style_id for s in default_result.styles
         if s.type == WD_STYLE_TYPE.PARAGRAPH
         and s.element.get(qn("w:default")) in {"1", "true", "on"})
-    assert default_result.paragraphs[3].style.style_id == default_style_id
+    # 模板未定义的角色回退到 FormatAgentBody（与正文保持一致）。
+    assert default_result.paragraphs[3].style.style_id == style_id_for_role("body")
     for role in fallback_spec["roles"]:
         managed = _style_by_id(default_result, style_id_for_role(role))
         assert _style_relation(managed, "w:next") == default_style_id
