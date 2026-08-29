@@ -3,15 +3,41 @@
 # 校验 role ∈ 枚举、idx 全覆盖；失败重试 <=2 次。
 
 import json
+import re
 
 from core.schema import BASE_ROLES
 
 BATCH_SIZE = 40
 
+# 中文公文标题编号惯例（确定性识别，不走 LLM，解决二级标题识别不稳）：
+#   一、    → heading_1    （一）  → heading_2    1. 或 1、 → heading_3
+# 仅当行较短且不以句读结尾时才认定为标题（正文句也可能以"一、"开头）。
+_HEADING_PATTERNS = [
+    (re.compile(r"^[一二三四五六七八九十百]+、"), "heading_1"),
+    (re.compile(r"^[（(][一二三四五六七八九十]+[）)]"), "heading_2"),
+    (re.compile(r"^\d{1,2}[.、]"), "heading_3"),
+]
+_HEADING_MAX_LEN = 40
+
+
+def regex_role(text):
+    """按编号惯例识别标题角色；无把握返回 None（交给 LLM）。"""
+    t = text.strip()
+    if not t or len(t) > _HEADING_MAX_LEN:
+        return None
+    if t.endswith(("。", "；", ";", "，", ",", "：", ":")):
+        return None
+    for pat, role in _HEADING_PATTERNS:
+        if pat.match(t):
+            return role
+    return None
+
 PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，角色只能从枚举里选:
 {roles}。
 判断依据: 文字内容、位置顺序、当前格式提示。落款单位通常在末尾、署名感强;
 日期含"年/月/日"; 标题通常在最前且独立成行。
+中文标题层级惯例: "一、"开头多为一级标题(heading_1)，"（一）"开头多为二级标题
+(heading_2)，"1."或"1、"开头多为三级标题(heading_3)；标题行通常较短且不以句号结尾。
 输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment}}]，
 输出严格为 {{"roles": [{{"idx": 0, "role": "title"}}, ...]}} 的 JSON 对象，
 roles 数组必须覆盖所有输入 idx，不多不少。
@@ -85,8 +111,14 @@ def label_roles(paragraphs, llm, on_event=None):
     for p in paragraphs:
         if p.get("in_table"):
             rolemap[p["idx"]] = "other"
+            continue
+        hit = regex_role(p.get("text", ""))
+        if hit:
+            rolemap[p["idx"]] = hit  # 编号惯例命中的标题：确定性识别，不送 LLM
         else:
             todo.append(p)
+    if rolemap:
+        on_event(f"编号惯例直接识别 {len(rolemap)} 段（含表格跳过），其余 {len(todo)} 段送模型标注")
     n_batches = (len(todo) + BATCH_SIZE - 1) // BATCH_SIZE
     for i in range(0, len(todo), BATCH_SIZE):
         batch_no = i // BATCH_SIZE + 1

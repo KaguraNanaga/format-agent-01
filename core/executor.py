@@ -84,6 +84,34 @@ def set_first_line_indent_chars(paragraph, chars):
         ind.set(qn("w:firstLine"), str(int(round(font_size * chars * 20))))
 
 
+def set_outline_level(paragraph, level):
+    """设置段落大纲级别（0-8，对应 Word 大纲 1-9 级），导航窗格据此显示结构。
+    level=None 表示清除大纲级别（回归正文文本，不进导航窗格）。
+    返回 True 表示有实际改动。
+
+    注意 OOXML 中 pPr 的子元素有顺序要求：w:outlineLvl 必须位于 w:rPr 之前，
+    乱序追加可能导致 Word 打开时提示"无法读取的内容"。
+    """
+    ppr = paragraph._p.get_or_add_pPr()
+    ol = ppr.find(qn("w:outlineLvl"))
+    if level is None:
+        if ol is not None:
+            ppr.remove(ol)
+            return True
+        return False
+    if ol is not None and ol.get(qn("w:val")) == str(int(level)):
+        return False
+    if ol is None:
+        ol = OxmlElement("w:outlineLvl")
+        rpr = ppr.find(qn("w:rPr"))
+        if rpr is not None:
+            rpr.addprevious(ol)
+        else:
+            ppr.append(ol)
+    ol.set(qn("w:val"), str(int(level)))
+    return True
+
+
 def set_doc_grid(document, line_pt=28.0):
     """开启页面行网格 (w:docGrid type="linesAndChars")，linePitch = 行距磅值 × 20。
 

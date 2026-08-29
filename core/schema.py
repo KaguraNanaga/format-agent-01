@@ -87,6 +87,9 @@ def validate_spec(spec):
             if ls is not None:
                 if not isinstance(ls, dict) or ls.get("type") not in ("exact", "multiple") or not _is_num(ls.get("pt")):
                     errors.append(f'roles.{role}.line_spacing 非法：必须是 {{"type": "exact"|"multiple", "pt": 数值}}')
+            v = rule.get("outline_level")
+            if v is not None and (not isinstance(v, int) or isinstance(v, bool) or not (0 <= v <= 8)):
+                errors.append(f"roles.{role}.outline_level={v!r} 非法：必须是 0~8 的整数")
 
     if errors:
         raise SpecValidationError(errors)

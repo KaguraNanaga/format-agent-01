@@ -10,6 +10,7 @@ from docx.shared import Mm
 from core.executor import (
     set_doc_grid,
     set_first_line_indent_chars,
+    set_outline_level,
     set_paragraph_fixed_spacing,
     set_run_fonts,
 )
@@ -20,6 +21,10 @@ _ALIGNMENT = {
     "right": WD_ALIGN_PARAGRAPH.RIGHT,
     "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
 }
+
+# 大纲级别默认值（0-8，Word 导航窗格据此显示层级）：标题 0 级，往下依次嵌套。
+# 规则里可写 "outline_level": N 覆盖默认值；非标题角色清除原文档残留的大纲级别。
+_DEFAULT_OUTLINE = {"title": 0, "heading_1": 1, "heading_2": 2, "heading_3": 3}
 
 
 def _apply_role_to_paragraph(p, rule):
@@ -94,6 +99,10 @@ def apply_format(docx_path, spec, rolemap, out_path):
         if rule is None:
             continue  # unknown role 且无 other 规则：保留原格式
         changed = _apply_role_to_paragraph(p, rule)
+        # 5) 大纲级别：标题角色进导航窗格；其余角色清掉原文档残留的大纲级别
+        target_ol = rule.get("outline_level", _DEFAULT_OUTLINE.get(role))
+        if set_outline_level(p, target_ol):
+            changed.append("outline_level")
         changelog.append({
             "idx": idx,
             "role": role,
