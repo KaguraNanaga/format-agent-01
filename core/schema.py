@@ -19,6 +19,8 @@ ALIGNMENTS = {"left", "center", "right", "justify"}
 SIZE_PT_RANGE = (8, 72)
 MARGIN_MM_RANGE = (5, 50)
 INDENT_CHARS_RANGE = (0, 8)
+NUMBERING_SUFFIXES = {"tab", "space", "nothing"}
+NUMBERING_ALIGNMENTS = {"left", "center", "right"}
 
 
 class SpecValidationError(Exception):
@@ -95,6 +97,58 @@ def validate_spec(spec):
                 v = rule.get(f)
                 if v is not None and (not _is_num(v) or not (0 <= v <= 100)):
                     errors.append(f"roles.{role}.{f}={v!r} 非法：必须是 0~100 磅的数值")
+            numbering = rule.get("numbering")
+            if numbering is not None:
+                if not isinstance(numbering, dict):
+                    errors.append(f"roles.{role}.numbering 必须是 object")
+                else:
+                    group = numbering.get("group")
+                    if not isinstance(group, str) or not group.strip():
+                        errors.append(f"roles.{role}.numbering.group 必须是非空字符串")
+                    level = numbering.get("level")
+                    if not isinstance(level, int) or isinstance(level, bool) or not (0 <= level <= 8):
+                        errors.append(f"roles.{role}.numbering.level 必须是 0~8 的整数")
+                    for field in ("num_format", "level_text"):
+                        value = numbering.get(field)
+                        if not isinstance(value, str) or not value:
+                            errors.append(f"roles.{role}.numbering.{field} 必须是非空字符串")
+                    start = numbering.get("start", 1)
+                    if not isinstance(start, int) or isinstance(start, bool) or not (0 <= start <= 10000):
+                        errors.append(f"roles.{role}.numbering.start 必须是 0~10000 的整数")
+                    level_restart = numbering.get("level_restart")
+                    if level_restart is not None and (
+                        not isinstance(level_restart, int) or isinstance(level_restart, bool)
+                        or not (0 <= level_restart <= 9)
+                    ):
+                        errors.append(
+                            f"roles.{role}.numbering.level_restart 必须是 0~9 的整数")
+                    suffix = numbering.get("suffix", "tab")
+                    if suffix not in NUMBERING_SUFFIXES:
+                        errors.append(
+                            f"roles.{role}.numbering.suffix={suffix!r} 非法："
+                            f"必须是 {sorted(NUMBERING_SUFFIXES)} 之一")
+                    alignment = numbering.get("alignment", "left")
+                    if alignment not in NUMBERING_ALIGNMENTS:
+                        errors.append(
+                            f"roles.{role}.numbering.alignment={alignment!r} 非法："
+                            f"必须是 {sorted(NUMBERING_ALIGNMENTS)} 之一")
+                    for field in (
+                        "left_twips", "hanging_twips", "first_line_twips", "tab_pos_twips",
+                    ):
+                        value = numbering.get(field)
+                        if value is not None and (
+                            not isinstance(value, int) or isinstance(value, bool)
+                            or not (-20000 <= value <= 20000)
+                        ):
+                            errors.append(
+                                f"roles.{role}.numbering.{field} 必须是 -20000~20000 的整数")
+                    number_size = numbering.get("size_pt")
+                    if number_size is not None and (
+                        not _is_num(number_size)
+                        or not (SIZE_PT_RANGE[0] <= number_size <= SIZE_PT_RANGE[1])
+                    ):
+                        errors.append(
+                            f"roles.{role}.numbering.size_pt 必须是 8~72 磅的数值")
 
     if errors:
         raise SpecValidationError(errors)

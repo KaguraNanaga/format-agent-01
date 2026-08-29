@@ -4,84 +4,31 @@
 # 确定性函数改 XML；页边距/行网格走 section 级别。LLM 不碰 docx。
 
 from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Mm
 
 from core.executor import (
     set_doc_grid,
-    set_first_line_indent_chars,
-    set_outline_level,
-    set_paragraph_fixed_spacing,
-    set_run_fonts,
 )
-
-_ALIGNMENT = {
-    "left": WD_ALIGN_PARAGRAPH.LEFT,
-    "center": WD_ALIGN_PARAGRAPH.CENTER,
-    "right": WD_ALIGN_PARAGRAPH.RIGHT,
-    "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
-}
-
-# 大纲级别默认值（0-8，Word 导航窗格据此显示层级）：标题 0 级，往下依次嵌套。
-# 规则里可写 "outline_level": N 覆盖默认值；非标题角色清除原文档残留的大纲级别。
-_DEFAULT_OUTLINE = {"title": 0, "heading_1": 1, "heading_2": 2, "heading_3": 3}
-
-
-def _apply_role_to_paragraph(p, rule):
-    """把一个角色的规则套到段落上，返回实际改动的字段列表。"""
-    changed = []
-    # 1) 字体/字号/加粗：套到每个 run（没有 run 的空段落跳过字体设置）
-    font_kwargs = {}
-    if rule.get("font_eastasia"):
-        font_kwargs["eastasia"] = rule["font_eastasia"]
-    if rule.get("font_ascii"):
-        font_kwargs["ascii_font"] = rule["font_ascii"]
-    if rule.get("size_pt") is not None:
-        font_kwargs["size_pt"] = rule["size_pt"]
-    if rule.get("bold") is not None:
-        font_kwargs["bold"] = rule["bold"]
-    if font_kwargs and p.runs:
-        for run in p.runs:
-            set_run_fonts(run, **font_kwargs)
-        changed.extend(k for k in ("font_eastasia", "font_ascii", "size_pt", "bold") if rule.get(k) is not None)
-    # 2) 对齐
-    if rule.get("alignment") in _ALIGNMENT:
-        p.alignment = _ALIGNMENT[rule["alignment"]]
-        changed.append("alignment")
-    # 3) 行距与段前段后
-    ls = rule.get("line_spacing")
-    before_pt = rule.get("space_before_pt")
-    after_pt = rule.get("space_after_pt")
-    if isinstance(ls, dict) and ls.get("pt") is not None and ls.get("type") == "multiple":
-        # 多倍行距走 python-docx 原生属性
-        p.paragraph_format.line_spacing = float(ls["pt"])
-        changed.append("line_spacing")
-        ls = None
-    exact_pt = ls.get("pt") if isinstance(ls, dict) else None
-    if exact_pt is not None or before_pt is not None or after_pt is not None:
-        set_paragraph_fixed_spacing(p, line_pt=exact_pt, before_pt=before_pt, after_pt=after_pt)
-        if exact_pt is not None:
-            changed.append("line_spacing")
-        if before_pt is not None:
-            changed.append("space_before_pt")
-        if after_pt is not None:
-            changed.append("space_after_pt")
-    # 4) 首行缩进（按字符）
-    if rule.get("first_line_indent_chars") is not None:
-        set_first_line_indent_chars(p, rule["first_line_indent_chars"])
-        changed.append("first_line_indent_chars")
-    return changed
+from core.style_set import (
+    apply_named_style,
+    clear_invalid_numbering_override,
+    ensure_role_styles,
+    resolve_target_body_style,
+)
 
 
 def apply_format(docx_path, spec, rolemap, out_path):
     """应用 FormatSpec × RoleMap，输出 docx，返回 changelog list[dict]。
     rolemap: {idx: role}（idx 对应 extract.py 的段落序号）。
-    未知角色按 other 处理（有 other 规则则套用，否则保留原格式）。
+    模板未明确指定的角色统一绑定目标文档原有正文样式，不借用 other 规则。
     表格内段落（idx >= len(doc.paragraphs)）v1 跳过。
     """
     doc = Document(docx_path)
     roles = spec.get("roles", {})
-    fallback = roles.get("other")
+    # 必须在创建/更新 FormatAgent 样式之前解析，避免把新样式误认成目标原样式。
+    target_body_style = resolve_target_body_style(doc, rolemap)
+    role_styles = ensure_role_styles(
+        doc, spec, target_body_style=target_body_style)
 
     # ---- 页面级 ----
     page = spec.get("page") or {}
@@ -102,22 +49,32 @@ def apply_format(docx_path, spec, rolemap, out_path):
     # ---- 段落级 ----
     changelog = []
     for idx, p in enumerate(doc.paragraphs):
-        role = rolemap.get(idx)
+        role = rolemap.get(idx, rolemap.get(str(idx)))
         if role is None:
             continue  # 未被标注的段落不动
-        rule = roles.get(role, fallback)
-        if rule is None:
-            continue  # unknown role 且无 other 规则：保留原格式
-        changed = _apply_role_to_paragraph(p, rule)
-        # 5) 大纲级别：标题角色进导航窗格；其余角色清掉原文档残留的大纲级别
-        target_ol = rule.get("outline_level", _DEFAULT_OUTLINE.get(role))
-        if set_outline_level(p, target_ol):
-            changed.append("outline_level")
+        if role in roles:
+            rule = roles[role]
+            style = role_styles[role]
+            changed = apply_named_style(p, style, rule, role=role)
+            fallback_to_target_body = False
+        else:
+            # 只替换 pStyle：真实自动编号、段落直接格式和 run 内强调均保留；
+            # 仅清掉 numId=0/ilvl=-1 这类会遮蔽正文缩进的“取消编号”残留。
+            # 即使模板定义了 other，也不能把缺失的 date/signature 等角色借给它。
+            invalid_numbering_removed = clear_invalid_numbering_override(p)
+            p.style = target_body_style
+            style = target_body_style
+            changed = ["paragraph_style", "fallback_to_target_body"]
+            if invalid_numbering_removed:
+                changed.append("invalid_numbering_removed")
+            fallback_to_target_body = True
         changelog.append({
             "idx": idx,
             "role": role,
+            "style_name": style.name,
             "text": p.text.strip()[:30],
             "changed_fields": changed,
+            "fallback_to_target_body": fallback_to_target_body,
         })
 
     doc.save(out_path)
@@ -141,11 +98,12 @@ def write_report(changelog, spec, report_path):
         lines.append("")
     lines.append("## 段落修改明细")
     lines.append("")
-    lines.append("| 段落 | 角色 | 改动字段 | 内容摘要 |")
-    lines.append("|---|---|---|---|")
+    lines.append("| 段落 | 角色 | Word 样式 | 改动字段 | 内容摘要 |")
+    lines.append("|---|---|---|---|---|")
     for c in changelog:
         fields = ", ".join(c["changed_fields"]) if c["changed_fields"] else "（无字段改动）"
-        lines.append(f"| {c['idx']} | {c['role']} | {fields} | {c['text']} |")
+        lines.append(
+            f"| {c['idx']} | {c['role']} | {c.get('style_name', '-')} | {fields} | {c['text']} |")
     lines.append("")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

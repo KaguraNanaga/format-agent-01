@@ -24,7 +24,8 @@ def main():
     ap.add_argument("--target", required=True, help="待排版的目标 docx")
     ap.add_argument("--out", required=True, help="输出 docx 路径")
     ap.add_argument("--report", help="对照报告路径（默认 <out去掉扩展名>_report.md）")
-    ap.add_argument("--verify", action="store_true", help="排版后做一轮视觉验证并定向修复（需视觉模型）")
+    ap.add_argument("--verify", action="store_true",
+                    help="排版后用同一个多模态模型做一轮视觉验证并定向修复")
     args = ap.parse_args()
 
     if not args.spec and not args.spec_json and not args.template:
@@ -64,13 +65,15 @@ def main():
     with open(base + "_rolemap.json", "w", encoding="utf-8") as f:
         json.dump({str(k): v for k, v in sorted(result["rolemap"].items())},
                   f, ensure_ascii=False, indent=2)
+    with open(base + "_stylemap.json", "w", encoding="utf-8") as f:
+        json.dump(result["stylemap"], f, ensure_ascii=False, indent=2)
     if result["issues"]:
         with open(base + "_issues.json", "w", encoding="utf-8") as f:
             json.dump(result["issues"], f, ensure_ascii=False, indent=2)
 
     print(f"\n输出: {result['out_path']}")
     print(f"对照报告: {result['report_path']}")
-    print(f"中间产物: {base}_formatspec.json / {base}_rolemap.json")
+    print(f"中间产物: {base}_formatspec.json / {base}_rolemap.json / {base}_stylemap.json")
 
 
 if __name__ == "__main__":

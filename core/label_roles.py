@@ -5,12 +5,14 @@
 import json
 import re
 
+from core.extract import manual_number_prefix
 from core.schema import BASE_ROLES
 
 BATCH_SIZE = 40
 
 # 中文公文标题编号惯例（确定性识别，不走 LLM，解决二级标题识别不稳）：
-#   一、    → heading_1    （一）  → heading_2    1. 或 1、 → heading_3
+#   一、    → heading_1    （一）  → heading_2
+# 数字前缀 1./2、/1.2 可能是标题，也可能是正文列表，不再单凭前缀强制标题。
 # 图表题注（论文/招股书类文档）：
 #   图1 xxx / 图 2-1 xxx → figure_caption    表1 xxx / 表 2-1 xxx → table_caption
 # 仅当行较短且不以句读结尾时才认定为标题（正文句也可能以"一、"开头）。
@@ -19,17 +21,94 @@ _HEADING_PATTERNS = [
     (re.compile(r"^表\s*\d+([-.]\d+)?"), "table_caption"),
     (re.compile(r"^[一二三四五六七八九十百]+、"), "heading_1"),
     (re.compile(r"^[（(][一二三四五六七八九十]+[）)]"), "heading_2"),
-    (re.compile(r"^\d{1,2}[.、]"), "heading_3"),
 ]
 _HEADING_MAX_LEN = 40
 
 
-def regex_role(text):
-    """按编号惯例识别标题角色；无把握返回 None（交给 LLM）。"""
-    t = text.strip()
-    if not t or len(t) > _HEADING_MAX_LEN:
+def _heading_role_from_metadata(paragraph):
+    if not paragraph:
         return None
-    if t.endswith(("。", "；", ";", "，", ",", "：", ":")):
+    outline = paragraph.get("outline_level")
+    if isinstance(outline, int) and not isinstance(outline, bool):
+        if outline == 0:
+            return "heading_1"
+        if outline == 1:
+            return "heading_2"
+        if 2 <= outline <= 8:
+            return "heading_3"
+    style_name = str(paragraph.get("style_name") or "").strip().lower()
+    match = re.search(r"(?:heading|title| 标题|标题)\s*([123])\b", " " + style_name)
+    if match:
+        return f"heading_{match.group(1)}"
+    return None
+
+
+def _looks_like_body_style(paragraph):
+    style_name = str((paragraph or {}).get("style_name") or "").strip().lower()
+    return bool(
+        style_name in {"normal", "normal indent", "正文", "格式正文", "body", "body text"}
+        or "正文" in style_name or style_name.startswith("body")
+    )
+
+
+def _numbered_body_evidence(paragraph):
+    """判断数字段是否有足够证据应作为正文列表项。"""
+    if not paragraph:
+        return False
+    if paragraph.get("list_kind") not in {"manual", "automatic"}:
+        return False
+    if paragraph.get("list_sequence"):
+        return True
+    if paragraph.get("ends_with_sentence_punct"):
+        return True
+    if int(paragraph.get("char_count") or 0) > _HEADING_MAX_LEN:
+        return True
+    if _looks_like_body_style(paragraph):
+        return True
+    if (
+        paragraph.get("numbering_status") in {"automatic", "cancelled"}
+        and _heading_role_from_metadata(paragraph) is None
+    ):
+        return True
+    return False
+
+
+def regex_role(text, paragraph=None):
+    """确定性预识别；无把握返回 None（交给 LLM）。
+
+    ``paragraph`` 是 extract.py 的元数据记录。对数字前缀，必须使用
+    样式/大纲/真自动编号/序列等结构证据，前缀本身不足以判标题。
+    """
+    t = text.strip()
+    if not t:
+        return None
+
+    manual = (paragraph or {}).get("manual_number") or (
+        (manual_number_prefix(t) or {}).get("label"))
+    metadata_heading = _heading_role_from_metadata(paragraph)
+    is_long = int((paragraph or {}).get("char_count") or len(t)) > _HEADING_MAX_LEN
+    ends_sentence = bool((paragraph or {}).get("ends_with_sentence_punct")) or t.endswith(
+        ("。", "；", ";", "！", "!", "？", "?", "，", ",", "：", ":"))
+
+    if manual:
+        if is_long or ends_sentence:
+            return "body"
+        if metadata_heading:
+            return metadata_heading
+        if _numbered_body_evidence(paragraph):
+            return "body"
+        return None
+
+    # 真自动编号的标记不在 paragraph.text 里，需靠 numPr + 大纲/样式判断。
+    if (paragraph or {}).get("numbering_status") == "automatic":
+        if is_long or ends_sentence:
+            return "body"
+        if metadata_heading:
+            return metadata_heading
+        if _numbered_body_evidence(paragraph):
+            return "body"
+
+    if is_long or ends_sentence:
         return None
     for pat, role in _HEADING_PATTERNS:
         if pat.match(t):
@@ -41,12 +120,15 @@ PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，�
 判断依据: 文字内容、位置顺序、当前格式提示。落款单位通常在末尾、署名感强;
 日期含"年/月/日"; 标题通常在最前且独立成行。
 中文标题层级惯例: "一、"开头多为一级标题(heading_1)，"（一）"开头多为二级标题
-(heading_2)，"1."或"1、"开头多为三级标题(heading_3)；标题行通常较短且不以句号结尾。
+(heading_2)。"1."/"2、"/"1.2" 可能是三级标题，也可能是正文编号项：
+长句、句末句号、连续 1/2/3 序列、Normal/正文样式或无大纲级别时应标 body；
+只有短且独立成行，并有 Heading/标题样式或 outline_level 等强证据时才标 heading_3。
+numbering_status=automatic 是真 Word 自动编号；cancelled 表示 numId=0 或 ilvl<0，
+它不是自动编号。list_kind=manual 表示数字是文本内容，不能擅自删除。
 "图1 xxx"/"图2-1 xxx"这类独立成行的是图片题注(figure_caption)，"表1 xxx"是表格题注
 (table_caption)。
-输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment, space_before_pt,
-space_after_pt}}]（后两个是段前/段后距磅值，null 表示未设置；标题段落常与正文之间
-有明显间距，可作辅助判断），
+输入是 JSON 数组，包含文本/字数/样式/大纲级别、list_kind、numbering_status、
+num_id/num_level/num_format/level_text、手工前缀、是否连续序列以及段落/编号缩进。
 输出严格为 {{"roles": [{{"idx": 0, "role": "title"}}, ...]}} 的 JSON 对象，
 roles 数组必须覆盖所有输入 idx，不多不少。
 段落清单：
@@ -93,9 +175,18 @@ def _validate_rolemap(items, expected_idxs):
 def _label_batch(batch, llm, max_retries=2, on_event=None):
     on_event = on_event or (lambda msg: None)
     expected = [p["idx"] for p in batch]
+    metadata_fields = (
+        "idx", "text", "char_count", "ends_with_sentence_punct",
+        "size_pt", "bold", "alignment", "style_name", "outline_level",
+        "space_before_pt", "space_after_pt", "list_kind", "manual_number",
+        "list_sequence", "numbering_status", "numbering_source", "num_id",
+        "num_level", "num_format", "level_text", "indent_left_twips",
+        "indent_hanging_twips", "indent_first_line_twips",
+        "numbering_left_twips", "numbering_hanging_twips",
+        "numbering_first_line_twips",
+    )
     payload = json.dumps(
-        [{k: p[k] for k in ("idx", "text", "size_pt", "bold", "alignment",
-                            "space_before_pt", "space_after_pt")} for p in batch],
+        [{key: p.get(key) for key in metadata_fields} for p in batch],
         ensure_ascii=False)
     prompt = PROMPT_TEMPLATE.format(roles="/".join(BASE_ROLES), paragraphs=payload)
     last_err = None
@@ -121,7 +212,7 @@ def label_roles(paragraphs, llm, on_event=None):
         if p.get("in_table"):
             rolemap[p["idx"]] = "other"
             continue
-        hit = regex_role(p.get("text", ""))
+        hit = regex_role(p.get("text", ""), p)
         if hit:
             rolemap[p["idx"]] = hit  # 编号惯例命中的标题：确定性识别，不送 LLM
         else:

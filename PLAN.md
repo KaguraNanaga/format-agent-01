@@ -11,7 +11,7 @@
   apply / verify_visual / agent（事件流编排器，CLI 和界面共用）
 - ✅ `main.py` CLI、`app.py` Streamlit 演示界面（Agent 工作日志实时直播 + 一键内置示例）
 - ✅ 测试素材 `assets/`（messy.docx + spec.txt + 标准答案 JSON），端到端+渲染图验证通过
-- ⏳ 真模型联调：代码就绪，等 `LLM_BASE_URL/LLM_API_KEY/LLM_MODEL/LLM_VISION_MODEL` 配好即可
+- ⏳ 真模型联调：代码就绪，等 `LLM_BASE_URL/LLM_API_KEY/LLM_MODEL` 配好即可
 - 明天只剩：真机联调 → 演示排练（14:30 冻结）→ 有余力再做视觉读模板加分项
 
 模板读规则做成了**纯确定性方案**（effective_props 读生效属性），不依赖视觉模型。
@@ -109,7 +109,7 @@ signature / date / attachment_label / attachment / other`。
 ## 5. LLM 调用约定（llm.py）
 
 - OpenAI 兼容接口，配置走环境变量（场地 tokens 到场再填，自备 key 兜底）：
-  `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_VISION_MODEL`
+  `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL`（统一使用支持图片输入的多模态模型）
   - Kimi: `https://api.moonshot.cn/v1`；GLM: `https://open.bigmodel.cn/api/paas/v4`
 - temperature=0；JSON 模式输出；超时 60s；指数退避重试 ≤2 次，校验失败把错误信息拼进 prompt 再试
 - 不引框架，直接 `requests`/`openai` 库打 HTTP，减少现场依赖风险

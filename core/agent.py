@@ -8,6 +8,7 @@ import os
 from core.apply import apply_format, write_report
 from core.extract import extract_paragraphs
 from core.schema import validate_spec
+from core.style_set import style_name_for_role
 
 
 class Agent:
@@ -90,8 +91,10 @@ class Agent:
         changelog = apply_format(target_path, spec, rolemap, out_path)
         write_report(changelog, spec, report_path)
         n_changed = sum(1 for c in changelog if c["changed_fields"])
+        n_styles = len({c.get("style_name") for c in changelog if c.get("style_name")})
         self._emit("执行排版",
-                   f"排版完成：{n_changed} 个段落被改写，输出 {os.path.basename(out_path)}",
+                   f"排版完成：已创建/更新 {n_styles} 个 Word 命名样式，"
+                   f"并应用到 {n_changed} 个段落，输出 {os.path.basename(out_path)}",
                    status="ok", data=changelog)
 
         # ⑤ 视觉自检（可选，一轮定向修复，不做开放循环）
@@ -102,7 +105,10 @@ class Agent:
                 self._emit("视觉自检", "正在把排版结果渲染成图，交给视觉模型对照规范质检 ...")
                 from core.verify_visual import apply_fixes, verify_visual
                 png_dir = os.path.splitext(out_path)[0] + "_verify_render"
-                issues = verify_visual(out_path, spec, self._get_llm(), png_dir)
+                issues = verify_visual(
+                    out_path, spec, self._get_llm(), png_dir,
+                    on_event=lambda message: self._emit(
+                        "视觉自检", message, status="warn"))
                 failed = [i for i in issues if not i["pass"]]
                 if not failed:
                     self._emit("视觉自检", f"自检通过：{len(issues)} 项检查全部符合规范", status="ok")
@@ -123,14 +129,36 @@ class Agent:
                                    "这些问题无法安全自动修复，已保留在问题清单中供人工处理",
                                    status="warn")
             except Exception as e:  # noqa: BLE001 —— 自检失败降级为警告
-                self._emit("视觉自检",
-                           f"自检跳过：{e}（排版结果不受影响；"
-                           "如需视觉自检请配置支持图片输入的 LLM_VISION_MODEL）",
-                           status="err")
+                from core.verify_visual import (
+                    VisualInconclusiveError,
+                    VisualModelError,
+                    VisualRenderError,
+                    VisualResponseError,
+                )
+                if isinstance(e, VisualRenderError):
+                    detail = f"渲染阶段失败：{e}"
+                elif isinstance(e, VisualModelError):
+                    detail = f"多模态请求失败：{e}"
+                elif isinstance(e, VisualResponseError):
+                    detail = f"模型 JSON/结构校验失败：{e}"
+                elif isinstance(e, VisualInconclusiveError):
+                    detail = f"模型无法下结论：{e}"
+                else:
+                    detail = f"未预期错误：{e}"
+                self._emit(
+                    "视觉自检",
+                    f"自检未完成（{detail}）。排版 DOCX 已保留，"
+                    "本次不会被误报为“0 项全部通过”",
+                    status="err")
 
         self._emit("完成", "全部流程结束", status="ok")
+        stylemap = {
+            role: style_name_for_role(role, rule)
+            for role, rule in (spec.get("roles") or {}).items()
+        }
         return {
             "spec": spec, "paragraphs": paragraphs, "rolemap": rolemap,
-            "changelog": changelog, "issues": issues, "applied_fixes": applied,
+            "stylemap": stylemap, "changelog": changelog,
+            "issues": issues, "applied_fixes": applied,
             "out_path": out_path, "report_path": report_path,
         }

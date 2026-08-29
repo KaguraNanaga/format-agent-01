@@ -25,8 +25,8 @@ cases = {
     "（一）投资背景": "heading_2",
     "(二)投资方案": "heading_2",
     "（三）回报预测": "heading_2",
-    "1. 经济效益": "heading_3",
-    "1、直接经济效益": "heading_3",
+    "1. 经济效益": None,  # 数字前缀本身不足以强制标题
+    "1、直接经济效益": None,
     "图1 系统架构图": "figure_caption",
     "图 2-1 技术路线图": "figure_caption",
     "表1 主要财务数据": "table_caption",
@@ -39,6 +39,15 @@ for text, want in cases.items():
     got = regex_role(text)
     assert got == want, "regex_role(%r) = %r, want %r" % (text, got, want)
 print("1. regex_role 单测通过（%d 例）" % len(cases))
+
+assert regex_role("1. 经济效益", {
+    "manual_number": "1", "list_kind": "manual", "char_count": 7,
+    "ends_with_sentence_punct": False, "outline_level": 2, "style_name": "标题 3",
+}) == "heading_3"
+assert regex_role("1. 同意该议案", {
+    "manual_number": "1", "list_kind": "manual", "char_count": 8,
+    "ends_with_sentence_punct": False, "outline_level": None, "style_name": "Normal",
+}) == "body"
 
 # ---- 2. spec_std 通过校验（含新增 heading_2/heading_3）----
 with open(os.path.join(ROOT, "assets", "spec_std.json"), encoding="utf-8") as f:
@@ -54,6 +63,7 @@ from docx import Document as NewDoc
 
 src = os.path.join(ROOT, "out", "_outline_src.docx")
 out = os.path.join(ROOT, "out", "outline_test.docx")
+os.makedirs(os.path.dirname(src), exist_ok=True)
 d = NewDoc()
 d.add_paragraph("关于向投资基金合伙企业委派委员的议案")   # 0 title
 d.add_paragraph("一、背景")                                 # 1 heading_1
@@ -73,9 +83,15 @@ changelog = apply_format(src, spec, rolemap, out)
 doc = Document(out)
 def _outline_val(p):
     ppr = p._p.find(qn("w:pPr"))
-    if ppr is None:
+    if ppr is not None:
+        ol = ppr.find(qn("w:outlineLvl"))
+        if ol is not None:
+            return ol.get(qn("w:val"))
+    # 新流水线把大纲级别定义在命名样式中，而不是逐段直刷。
+    style_ppr = p.style.element.find(qn("w:pPr"))
+    if style_ppr is None:
         return None
-    ol = ppr.find(qn("w:outlineLvl"))
+    ol = style_ppr.find(qn("w:outlineLvl"))
     return ol.get(qn("w:val")) if ol is not None else None
 
 n_h2 = 0
@@ -84,18 +100,19 @@ for idx, p in enumerate(doc.paragraphs):
     if role == "title":
         assert _outline_val(p) == "0", "title 大纲级别应为 0"
     elif role == "heading_1":
-        assert _outline_val(p) == "1", "heading_1 大纲级别应为 1"
+        assert _outline_val(p) == "0", "heading_1 大纲级别应为 0"
     elif role == "heading_2":
         n_h2 += 1
-        assert _outline_val(p) == "2", "heading_2 大纲级别应为 2"
-        rpr = p.runs[0]._element.find(qn("w:rPr"))
+        assert _outline_val(p) == "1", "heading_2 大纲级别应为 1"
+        assert p.style.name == "标题 2", "heading_2 必须绑定真实中文命名样式"
+        rpr = p.style.element.find(qn("w:rPr"))
         font = rpr.find(qn("w:rFonts")).get(qn("w:eastAsia"))
         assert font == "楷体_GB2312", "heading_2 应为楷体_GB2312，实际 %s" % font
     elif role == "body":
         assert _outline_val(p) is None, "body 不应有大纲级别"
 print("3. 端到端 apply 通过：识别二级标题 %d 个，大纲级别 XML 全部正确" % n_h2)
 
-# ---- 4. 渲染验证文件完整性（Word COM 打不开会抛异常）----
+# ---- 4. 渲染验证文件完整性（Windows Word COM；macOS/Linux LibreOffice）----
 from core.render import render_docx_to_png
 pages = render_docx_to_png(out, os.path.join(ROOT, "out", "outline_render"))
 print("4. 渲染通过：%d 页 -> out/outline_render/" % len(pages))

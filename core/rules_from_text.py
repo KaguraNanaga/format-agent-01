@@ -13,6 +13,10 @@ attachment_label/attachment/other。规范里没提到的角色不要输出；�
 "line_grid": {{"line_pt":..}}}}, "roles": {{"body": {{...}}, ...}}}}。roles.body 必填。
 字段: font_eastasia(中文字体名)/font_ascii/size_pt(磅)/bold/alignment(left|center|
 right|justify)/first_line_indent_chars(字符数)/line_spacing({{"type":"exact"|"multiple","pt":..}})。
+若规范明确要求自动编号，可在相应角色增加 numbering：
+{{"group":"headings","level":0~8,"num_format":"chineseCounting|decimal|...",
+"level_text":"%1、","start":1,"suffix":"tab|space|nothing","alignment":"left|center|right"}}。
+同一套多级标题必须使用相同 group；没有明确编号要求时不要添加 numbering。
 页面字段: page.margin(毫米)/page.line_grid.line_pt。
 数值必须合理: size_pt 8~72, margin 5~50, first_line_indent_chars 0~8。
 每个角色至少要有 font_eastasia、size_pt、alignment 三个字段。
