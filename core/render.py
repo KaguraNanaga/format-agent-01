@@ -368,6 +368,24 @@ def libreoffice_status():
     }
 
 
+def renderer_status():
+    """渲染器总诊断（供网页用）：Windows 优先 Word COM，其次 LibreOffice；
+    其他平台走 LibreOffice。与 docx_to_pdf 的实际选择保持一致——
+    之前网页只看 LibreOffice，Windows 上有 Word 也会误判"渲染不可用"。
+    """
+    if sys.platform == "win32":
+        try:
+            import win32com.client  # noqa: F401
+            return {"available": True, "name": "Word COM",
+                    "version": "Microsoft Word (COM)", "path": None}
+        except ImportError:
+            pass
+    lo = libreoffice_status()
+    return {"available": lo["available"], "name": "LibreOffice",
+            "version": lo["version"], "path": lo["path"],
+            "searched": lo.get("searched")}
+
+
 def docx_to_pdf_libreoffice(docx_path, pdf_path):
     """用 LibreOffice headless 导出 PDF，供 macOS/Linux 使用。"""
     soffice = _find_soffice()

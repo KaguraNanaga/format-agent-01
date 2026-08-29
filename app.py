@@ -17,7 +17,7 @@ import streamlit as st
 from core.agent import Agent
 from core.history import list_runs, save_run
 from core.llm import load_dotenv
-from core.render import libreoffice_status
+from core.render import renderer_status as _renderer_status
 from core.schema import validate_spec
 
 
@@ -603,7 +603,7 @@ def _event_markup(events):
 
 # ---------------- 首屏 ----------------
 model_name = os.environ.get("LLM_MODEL", "")
-renderer_status = libreoffice_status()
+renderer_status = _renderer_status()
 agent_state = "模型已连接" if _llm_available() else "等待模型配置"
 renderer_name = renderer_status.get("version") or "渲染器未连接"
 
@@ -644,7 +644,8 @@ if not _llm_available():
         "FormatSpec 与 RoleMap，走完全确定性的排版流程。"
     )
 if not renderer_status["available"]:
-    st.info("没有检测到 LibreOffice：DOCX 仍可生成，但前后对比和视觉复核将不可用。")
+    st.info("没有检测到可用的渲染器（Windows 用 Word，其他系统用 LibreOffice）："
+            "DOCX 仍可生成，但前后对比和视觉复核将不可用。")
 
 
 # ---------------- 输入任务 ----------------
