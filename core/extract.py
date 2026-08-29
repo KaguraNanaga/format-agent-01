@@ -17,37 +17,43 @@ def _alignment_name(paragraph):
     return _ALIGN_MAP.get(int(a), str(a))
 
 
+def _spacing_pt(paragraph):
+    """读段落直刷的段前/段后距（磅）。样式层定义的间距读不到，返回 None。"""
+    pf = paragraph.paragraph_format
+    sb = round(pf.space_before.pt, 1) if pf.space_before is not None else None
+    sa = round(pf.space_after.pt, 1) if pf.space_after is not None else None
+    return sb, sa
+
+
+def _para_record(idx, p, in_table):
+    eastasia, size_pt, bold = get_paragraph_effective_font(p)
+    sb, sa = _spacing_pt(p)
+    return {
+        "idx": idx,
+        "text": p.text.strip()[:80],
+        "size_pt": size_pt,
+        "bold": bold,
+        "alignment": _alignment_name(p),
+        "style_name": p.style.name if p.style is not None else None,
+        "space_before_pt": sb,
+        "space_after_pt": sa,
+        "in_table": in_table,
+    }
+
+
 def extract_paragraphs(docx_path):
     """返回段落清单 list[dict]，idx 为全文段落序号（含表格内段落）。"""
     doc = Document(docx_path)
     out = []
     for idx, p in enumerate(doc.paragraphs):
-        eastasia, size_pt, bold = get_paragraph_effective_font(p)
-        out.append({
-            "idx": idx,
-            "text": p.text.strip()[:80],
-            "size_pt": size_pt,
-            "bold": bold,
-            "alignment": _alignment_name(p),
-            "style_name": p.style.name if p.style is not None else None,
-            "in_table": False,
-        })
+        out.append(_para_record(idx, p, False))
     # 表格段落追加在末尾（doc.paragraphs 不含表格内段落，单独列出）
     idx = len(out)
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for p in cell.paragraphs:
-                    eastasia, size_pt, bold = get_paragraph_effective_font(p)
-                    out.append({
-                        "idx": idx,
-                        "text": p.text.strip()[:80],
-                        "size_pt": size_pt,
-                        "bold": bold,
-                        "alignment": _alignment_name(p),
-                        "style_name": p.style.name if p.style is not None else None,
-                        "in_table": True,
-                    })
+                    out.append(_para_record(idx, p, True))
                     idx += 1
     return out
 

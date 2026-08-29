@@ -49,6 +49,10 @@ def _build_checklist(spec):
             parts.append(f"对齐 {rule['alignment']}")
         if rule.get("first_line_indent_chars"):
             parts.append(f"首行缩进 {rule['first_line_indent_chars']} 字符")
+        if rule.get("space_before_pt"):
+            parts.append(f"段前 {rule['space_before_pt']} 磅")
+        if rule.get("space_after_pt"):
+            parts.append(f"段后 {rule['space_after_pt']} 磅")
         ls = rule.get("line_spacing") or {}
         if ls.get("pt"):
             parts.append(f"行距 {'固定值' if ls.get('type') == 'exact' else '倍数'} {ls['pt']} 磅")

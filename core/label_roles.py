@@ -44,7 +44,9 @@ PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，�
 (heading_2)，"1."或"1、"开头多为三级标题(heading_3)；标题行通常较短且不以句号结尾。
 "图1 xxx"/"图2-1 xxx"这类独立成行的是图片题注(figure_caption)，"表1 xxx"是表格题注
 (table_caption)。
-输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment}}]，
+输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment, space_before_pt,
+space_after_pt}}]（后两个是段前/段后距磅值，null 表示未设置；标题段落常与正文之间
+有明显间距，可作辅助判断），
 输出严格为 {{"roles": [{{"idx": 0, "role": "title"}}, ...]}} 的 JSON 对象，
 roles 数组必须覆盖所有输入 idx，不多不少。
 段落清单：
@@ -92,7 +94,8 @@ def _label_batch(batch, llm, max_retries=2, on_event=None):
     on_event = on_event or (lambda msg: None)
     expected = [p["idx"] for p in batch]
     payload = json.dumps(
-        [{k: p[k] for k in ("idx", "text", "size_pt", "bold", "alignment")} for p in batch],
+        [{k: p[k] for k in ("idx", "text", "size_pt", "bold", "alignment",
+                            "space_before_pt", "space_after_pt")} for p in batch],
         ensure_ascii=False)
     prompt = PROMPT_TEMPLATE.format(roles="/".join(BASE_ROLES), paragraphs=payload)
     last_err = None

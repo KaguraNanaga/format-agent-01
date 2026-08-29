@@ -93,6 +93,11 @@ def extract_rules_from_template(template_path, rolemap):
         flc = _para_indent_chars(p, size_pt)
         if flc:
             rule["first_line_indent_chars"] = flc
+        pf = p.paragraph_format
+        if pf.space_before is not None:
+            rule["space_before_pt"] = round(pf.space_before.pt, 1)
+        if pf.space_after is not None:
+            rule["space_after_pt"] = round(pf.space_after.pt, 1)
         roles[role] = rule
 
     if "body" not in roles:
