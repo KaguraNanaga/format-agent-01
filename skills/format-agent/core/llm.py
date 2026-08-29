@@ -156,7 +156,7 @@ class LLMClient:
         self.model = model or os.environ.get("LLM_MODEL") or ""
         self.timeout = timeout if timeout is not None else int(
             os.environ.get("LLM_TIMEOUT", "120"))
-        # 某些端点（如 kimi coding 的 k3）只允许 temperature=1，用环境变量适配。
+        # 某些端点的模型（如 kimi coding）只允许 temperature=1，用环境变量适配。
         raw_temperature = os.environ.get("LLM_TEMPERATURE", "0").strip()
         try:
             self.temperature = float(raw_temperature)

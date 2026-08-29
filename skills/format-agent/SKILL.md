@@ -22,6 +22,19 @@ description: 通用文档格式排版。当用户给一份"格式规范"（自�
   - 环境变量 / `.env` 文件：`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`（可选 `LLM_VISION_MODEL`、`LLM_TIMEOUT`、`LLM_TEMPERATURE`）
   - 或完全不用模型：直接提供 `spec_std.json` 与 `rolemap_std.json` 走确定性降级链路
 
+## 模型选择（重要：建议多模态）
+
+本技能不绑定任何特定模型，任何 OpenAI 兼容端点均可。**但建议配置多模态模型**
+（同时支持文本与图像输入，如 GPT-4o、Kimi K3、Qwen-VL、GLM-4V 等）：
+
+- 排版主流程（规则抽取、角色标注）只需文本能力
+- **视觉自检（--verify）必须把渲染图交给模型质检**，纯文本模型无法使用这一环节
+
+**给调用方 Agent 的指示**：在开始执行前，先确认当前使用的模型是什么、
+是否具备多模态（图像输入）能力。如果当前模型不具备多模态能力，请主动提示用户：
+"当前模型不支持图像输入，视觉自检将不可用；建议切换为多模态模型（如 XXX），
+可以获得排版后的自动质检，效果更佳。" 用户确认后再继续执行。
+
 ## 使用方法
 
 在本 skill 目录下运行：
@@ -69,7 +82,7 @@ streamlit run app.py   # app.py 在项目主仓库，本 skill 目录只含流�
 - `缺少 LLM 配置` → 检查 .env 或环境变量
 - 角色标注反复失败 → 模型 JSON 输出不稳定，改用 `--rolemap-json` 手工标注
 - 视觉复核 400 temperature → 该模型只许 temperature= 1，在 .env 设 `LLM_TEMPERATURE= 1`
-- 视觉复核报图片错误 → 端点不支持内联图片；Kimi 直连端点已验证可用
+- 视觉复核报图片错误 → 端点不支持 data:base64 内联图片，或当前模型无图像输入能力；换多模态模型
 - 渲染失败 → Windows 需装 Word（走 COM），macOS/Linux 需 LibreOffice
 
 ## examples/ 目录

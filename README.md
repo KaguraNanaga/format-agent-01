@@ -74,11 +74,15 @@ pip install -r requirements.txt
 配置模型（OpenAI 兼容端点，写在 `.env` 或环境变量里）：
 
 ```bash
-LLM_BASE_URL=https://api.kimi.com/coding/v1
+LLM_BASE_URL=https://你的端点/v1
 LLM_API_KEY=你的key
-LLM_MODEL=k3
+LLM_MODEL=你的模型
 # 可选：LLM_VISION_MODEL / LLM_TIMEOUT / LLM_TEMPERATURE
 ```
+
+> **建议使用多模态模型**（同时支持文本与图像输入，如 GPT-4o、Kimi K3、Qwen-VL、GLM-4V 等）。
+> 排版主流程只需文本能力，但"视觉自检"要把渲染图交给模型质检——
+> 多模态模型一套配置全搞定，纯文本模型则无法开启视觉自检。
 
 ### 命令行
 
