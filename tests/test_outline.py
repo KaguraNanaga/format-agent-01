@@ -71,7 +71,7 @@ d.add_paragraph("为贯彻落实发展规划，推动产业整体发展，特设
 d.add_paragraph("（一）投资背景")                           # 3 heading_2
 d.add_paragraph("在基金层面，作为政策性基金，科创基金完成了多笔投资。")  # 4 body
 d.add_paragraph("（二）投资方案")                           # 5 heading_2
-d.add_paragraph("星驰智行已于2023年4月与全体股东终止了全部特殊权利。")   # 6 body
+d.add_paragraph("星驰智行已于2024年6月与全体股东终止了全部特殊权利。")   # 6 body
 d.add_paragraph("某某局办公室")                              # 7 signature
 d.add_paragraph("2026年8月28日")                             # 8 date
 d.save(src)
