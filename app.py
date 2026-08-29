@@ -10,6 +10,7 @@ import tempfile
 import streamlit as st
 
 from core.agent import Agent
+from core.history import list_runs, save_run
 from core.llm import load_dotenv
 from core.schema import validate_spec
 
@@ -262,6 +263,13 @@ if run and (target_file is not None or use_demo):
         st.download_button("下载排版后 docx", f.read(), "formatted.docx")
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # ---------------- 历史留档 ----------------
+    save_run(result["out_path"], result["report_path"], {
+        "source_name": "内置示例 messy.docx" if use_demo else target_file.name,
+        "spec_mode": "内置示例" if use_demo else spec_mode,
+        "issues_count": len(result.get("issues") or []),
+    })
+
     # ---------------- 前后对比 ----------------
     with st.spinner("渲染前后对比图（Word COM，约十几秒）..."):
         from core.render import render_docx_to_png
@@ -274,4 +282,31 @@ if run and (target_file is not None or use_demo):
             st.image(before_pages[i], caption=f"排版前 · 第 {i + 1} 页")
         with c2:
             st.image(after_pages[i], caption=f"排版后 · 第 {i + 1} 页")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ---------------- 历史记录（每次页面加载都展示，新跑完的记录立即出现） ----------------
+_runs = list_runs()
+if _runs:
+    st.markdown(_card_open("留痕", "历史记录", "每次排版的产物都持久保存，随时回看与下载"),
+                unsafe_allow_html=True)
+    for _r in _runs:
+        cols = st.columns([5, 2, 2, 2])
+        with cols[0]:
+            st.markdown(
+                f"**{_r.get('source_name', '（未命名）')}**<br/>"
+                f"<span style='color:#86868b;font-size:12px'>{_r.get('time', '')}</span>",
+                unsafe_allow_html=True)
+        with cols[1]:
+            st.caption(_r.get("spec_mode", ""))
+        with cols[2]:
+            with open(_r["docx"], "rb") as f:
+                st.download_button("下载 docx", f.read(),
+                                   file_name="formatted_%s.docx" % _r["run_id"],
+                                   key="dl_docx_" + _r["run_id"])
+        with cols[3]:
+            if os.path.isfile(_r["report"]):
+                with open(_r["report"], "rb") as f:
+                    st.download_button("下载报告", f.read(),
+                                       file_name="report_%s.md" % _r["run_id"],
+                                       key="dl_rep_" + _r["run_id"])
     st.markdown("</div>", unsafe_allow_html=True)
