@@ -156,6 +156,12 @@ class LLMClient:
         self.model = model or os.environ.get("LLM_MODEL") or ""
         self.timeout = timeout if timeout is not None else int(
             os.environ.get("LLM_TIMEOUT", "120"))
+        # 某些端点（如 kimi coding 的 k3）只允许 temperature=1，用环境变量适配。
+        raw_temperature = os.environ.get("LLM_TEMPERATURE", "0").strip()
+        try:
+            self.temperature = float(raw_temperature)
+        except ValueError:
+            raise LLMError(f"LLM_TEMPERATURE 必须是数字，当前值为 {raw_temperature!r}")
         max_tokens = os.environ.get("LLM_MAX_TOKENS", "4096").strip()
         try:
             self.max_tokens = max(256, int(max_tokens))
@@ -254,7 +260,7 @@ class LLMClient:
         body = {
             "model": model or self.model,
             "messages": messages,
-            "temperature": 0,
+            "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
         if json_mode:
@@ -269,6 +275,10 @@ class LLMClient:
                 changed = True
             if "max_tokens" in details and "max_tokens" in body:
                 body.pop("max_tokens", None)
+                changed = True
+            # 模型强制 temperature=1 时，按错误提示自适应一次。
+            if "temperature" in details and "only 1 is allowed" in details:
+                body["temperature"] = 1
                 changed = True
             if changed:
                 resp = requests.post(url, headers=headers, json=body, timeout=self.timeout)
