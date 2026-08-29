@@ -1,0 +1,1467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#03070c" />
+  <title>最终版｜黑客松路演</title>
+  <style>
+    :root {
+      --bg: #03070c;
+      --bg-soft: #07111b;
+      --panel: rgba(6, 17, 27, 0.82);
+      --cyan: #00e5ff;
+      --cyan-soft: #65e7ff;
+      --blue: #147bff;
+      --blue-deep: #0a2a68;
+      --white: #f7fbff;
+      --muted: #8d9aaa;
+      --line: rgba(0, 229, 255, 0.42);
+      --line-soft: rgba(101, 231, 255, 0.16);
+      --lime: #b8ff00;
+      --magenta: #ff3bd4;
+      --danger: #ff5678;
+      --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", Arial, sans-serif;
+      --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      color: var(--white);
+      background:
+        radial-gradient(circle at 76% 18%, rgba(20, 123, 255, 0.14), transparent 28%),
+        radial-gradient(circle at 12% 85%, rgba(0, 229, 255, 0.08), transparent 30%),
+        #010305;
+      font-family: var(--sans);
+      user-select: none;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .deck {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 1600px;
+      height: 900px;
+      overflow: hidden;
+      transform-origin: center center;
+      background: var(--bg);
+      box-shadow: 0 36px 120px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(101, 231, 255, 0.08);
+    }
+
+    .deck::before,
+    .deck::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 80;
+    }
+
+    .deck::before {
+      opacity: 0.48;
+      background:
+        linear-gradient(rgba(101, 231, 255, 0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(101, 231, 255, 0.022) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.6), transparent 72%);
+    }
+
+    .deck::after {
+      opacity: 0.12;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 5px,
+        rgba(255, 255, 255, 0.08) 6px
+      );
+      mix-blend-mode: screen;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      padding: 62px 76px 58px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate3d(42px, 0, 0) scale(0.996);
+      transition: opacity 210ms ease, transform 260ms cubic-bezier(.2,.75,.2,1);
+      background:
+        radial-gradient(circle at 84% 12%, rgba(20, 123, 255, 0.12), transparent 26%),
+        radial-gradient(circle at 12% 92%, rgba(0, 229, 255, 0.06), transparent 28%),
+        var(--bg);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 22px;
+      border: 1px solid rgba(101, 231, 255, 0.07);
+      pointer-events: none;
+    }
+
+    .slide.active {
+      z-index: 10;
+      opacity: 1;
+      pointer-events: auto;
+      transform: none;
+    }
+
+    .slide.past { transform: translate3d(-42px, 0, 0) scale(0.996); }
+
+    .slide.active .reveal {
+      opacity: 0;
+      animation: rise-in 520ms cubic-bezier(.2,.75,.2,1) forwards;
+      animation-delay: calc(var(--i, 0) * 75ms + 70ms);
+    }
+
+    .slide.active .scan-flash { animation: scan-flash 360ms ease-out both; }
+
+    .slide-head {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 44px;
+    }
+
+    .route {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .route::before {
+      content: ">";
+      color: var(--white);
+    }
+
+    .route::after {
+      content: "";
+      width: 10px;
+      height: 20px;
+      background: var(--cyan);
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.52);
+      animation: cursor 920ms steps(1, end) infinite;
+    }
+
+    .slide-title {
+      margin: 0;
+      max-width: 1240px;
+      color: var(--white);
+      font-size: 54px;
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: -0.045em;
+    }
+
+    .slide-index {
+      padding-top: 4px;
+      color: rgba(247, 251, 255, 0.45);
+      font-family: var(--mono);
+      font-size: 18px;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+    }
+
+    .slide-index strong { color: var(--cyan); font-weight: 700; }
+
+    .pixel-corner {
+      position: absolute;
+      z-index: 3;
+      width: 54px;
+      height: 54px;
+      border-top: 4px solid var(--cyan);
+      border-left: 4px solid var(--cyan);
+      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.28));
+    }
+
+    .pixel-corner::before,
+    .pixel-corner::after {
+      content: "";
+      position: absolute;
+      background: var(--cyan);
+    }
+
+    .pixel-corner::before { width: 10px; height: 10px; left: 14px; top: -4px; }
+    .pixel-corner::after { width: 7px; height: 7px; left: -4px; top: 18px; background: var(--magenta); }
+    .corner-tr { top: 34px; right: 36px; transform: rotate(90deg); }
+    .corner-bl { left: 36px; bottom: 34px; transform: rotate(-90deg); }
+
+    .glitch {
+      position: relative;
+      display: inline-block;
+      text-shadow: 7px 7px 0 rgba(0, 229, 255, 0.94);
+    }
+
+    .glitch::before,
+    .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .slide.active .glitch::before {
+      color: var(--magenta);
+      transform: translate(-7px, 1px);
+      clip-path: inset(15% 0 60% 0);
+      animation: glitch-one 430ms steps(2, end) 170ms 1 both;
+    }
+
+    .slide.active .glitch::after {
+      color: var(--cyan);
+      transform: translate(8px, -2px);
+      clip-path: inset(62% 0 8% 0);
+      animation: glitch-two 430ms steps(2, end) 190ms 1 both;
+    }
+
+    .accent { color: var(--cyan); }
+    .lime { color: var(--lime); }
+    .muted { color: var(--muted); }
+    .mono { font-family: var(--mono); }
+
+    /* Cover */
+    .cover { padding: 58px 78px 52px; }
+    .cover::after {
+      content: "";
+      position: absolute;
+      right: -170px;
+      bottom: -250px;
+      width: 690px;
+      height: 690px;
+      border: 1px solid rgba(0, 229, 255, 0.14);
+      border-radius: 50%;
+      box-shadow: 0 0 90px rgba(20, 123, 255, 0.09), inset 0 0 90px rgba(0, 229, 255, 0.03);
+    }
+
+    .cover-top {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .event-label {
+      display: inline-flex;
+      gap: 12px;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border: 2px solid var(--cyan);
+      color: var(--white);
+      background: rgba(0, 229, 255, 0.05);
+      box-shadow: 7px 7px 0 rgba(0, 229, 255, 0.78);
+      font-family: var(--mono);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .event-label::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      background: var(--lime);
+      box-shadow: 0 0 14px rgba(184, 255, 0, 0.52);
+    }
+
+    .team {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 7px 20px;
+      align-items: baseline;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 16px;
+    }
+
+    .team .key { color: var(--muted); }
+    .team .value { color: var(--white); font-weight: 700; }
+    .team .team-name { color: var(--cyan); }
+
+    .cover-main {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 72px;
+      align-items: end;
+      margin-top: 92px;
+    }
+
+    .product-kicker {
+      margin: 0 0 12px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .product-name {
+      margin: 0;
+      font-size: 142px;
+      line-height: 0.94;
+      font-weight: 950;
+      letter-spacing: -0.085em;
+    }
+
+    .product-subtitle {
+      margin: 26px 0 0;
+      max-width: 930px;
+      font-size: 47px;
+      line-height: 1.16;
+      font-weight: 850;
+      letter-spacing: -0.05em;
+    }
+
+    .cover-side {
+      position: relative;
+      padding: 20px 0 8px 30px;
+      border-left: 3px solid var(--cyan);
+    }
+
+    .cover-side::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: 0;
+      width: 13px;
+      height: 13px;
+      background: var(--magenta);
+    }
+
+    .cover-side .side-label {
+      margin-bottom: 15px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 16px;
+      letter-spacing: 0.1em;
+    }
+
+    .cover-side p {
+      margin: 0;
+      color: #c9d4df;
+      font-size: 24px;
+      line-height: 1.62;
+      font-weight: 550;
+    }
+
+    .cover-side strong { color: var(--white); font-weight: 850; }
+
+    .cover-bottom {
+      position: absolute;
+      z-index: 3;
+      left: 78px;
+      right: 78px;
+      bottom: 54px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    .terminal-line {
+      display: flex;
+      align-items: center;
+      min-height: 46px;
+      color: #aebac8;
+      font-family: var(--mono);
+      font-size: 17px;
+      letter-spacing: 0.02em;
+    }
+
+    .terminal-line::before {
+      content: "$";
+      margin-right: 15px;
+      color: var(--lime);
+      font-weight: 800;
+    }
+
+    .terminal-line .typing {
+      display: inline-block;
+      width: 62ch;
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 8px solid var(--cyan);
+    }
+
+    .slide.active .terminal-line .typing { animation: type-line 2.1s steps(62, end) 420ms both, caret 850ms steps(1, end) infinite; }
+
+    .cover-tagline {
+      padding: 10px 15px;
+      color: #061014;
+      background: var(--lime);
+      box-shadow: 8px 8px 0 var(--cyan);
+      font-size: 21px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    /* Ending pose */
+    .end-slide .cover-main {
+      grid-template-columns: 1fr;
+      align-items: center;
+      margin-top: 130px;
+    }
+
+    .end-slide .end-title {
+      margin: 0;
+      max-width: 1380px;
+      font-size: 108px;
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: -0.075em;
+      white-space: nowrap;
+    }
+
+    .end-slide .end-subtitle {
+      margin: 30px 0 0;
+      color: var(--white);
+      font-size: 52px;
+      line-height: 1.15;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+    }
+
+    .end-slide .end-subtitle .final-word {
+      color: var(--cyan);
+      text-shadow: 4px 4px 0 rgba(20, 123, 255, 0.62);
+    }
+
+    .end-slide .cover-bottom { align-items: center; }
+    .end-slide .cover-tagline {
+      color: var(--cyan);
+      border: 2px solid var(--cyan);
+      background: rgba(0, 229, 255, 0.04);
+      box-shadow: 7px 7px 0 rgba(20, 123, 255, 0.76);
+      font-family: var(--mono);
+      font-size: 17px;
+      letter-spacing: 0.08em;
+    }
+
+    /* Demo */
+    .demo-slide {
+      display: grid;
+      place-items: center;
+      padding: 0;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(20, 123, 255, 0.16), transparent 34%),
+        var(--bg);
+    }
+
+    .demo-slide::before { inset: 54px; border-color: rgba(0, 229, 255, 0.12); }
+
+    .demo-title {
+      position: relative;
+      z-index: 2;
+      margin: 0;
+      font-size: 142px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.08em;
+    }
+
+    .demo-title::after {
+      content: "";
+      display: inline-block;
+      width: 34px;
+      height: 104px;
+      margin-left: 28px;
+      transform: translateY(13px);
+      background: var(--cyan);
+      box-shadow: 0 0 34px rgba(0, 229, 255, 0.32);
+      animation: cursor 850ms steps(1, end) infinite;
+    }
+
+    .demo-cross {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: var(--magenta);
+      box-shadow: 1120px 510px 0 var(--cyan), -1050px -410px 0 var(--lime);
+    }
+
+    /* Comparison */
+    .compare-slide .slide-title { max-width: 1270px; outline: none; }
+    .edit-mode .editable[contenteditable="true"] {
+      cursor: text;
+      user-select: text;
+      box-shadow: inset 0 -2px 0 var(--magenta);
+    }
+
+    .compare-grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+      height: 602px;
+      margin-top: 34px;
+    }
+
+    .shot-frame {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 2px solid rgba(0, 229, 255, 0.44);
+      background:
+        linear-gradient(135deg, rgba(20, 123, 255, 0.06), transparent 42%),
+        rgba(4, 12, 20, 0.86);
+      box-shadow: 0 0 32px rgba(0, 229, 255, 0.045);
+    }
+
+    .shot-frame::before,
+    .shot-frame::after {
+      content: "";
+      position: absolute;
+      z-index: 5;
+      width: 28px;
+      height: 28px;
+      pointer-events: none;
+    }
+
+    .shot-frame::before { top: -2px; right: -2px; border-top: 8px solid var(--cyan); border-right: 8px solid var(--cyan); }
+    .shot-frame::after { bottom: -2px; left: -2px; border-bottom: 8px solid var(--blue); border-left: 8px solid var(--blue); }
+
+    .shot-head {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 58px;
+      padding: 0 18px;
+      border-bottom: 1px solid rgba(0, 229, 255, 0.25);
+      background: rgba(7, 20, 32, 0.94);
+      font-family: var(--mono);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+
+    .shot-head span:first-child { color: var(--cyan); outline: none; }
+    .shot-no { color: rgba(247, 251, 255, 0.36); font-size: 14px; }
+
+    .shot-body {
+      position: relative;
+      height: calc(100% - 58px);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .shot-body img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #020508;
+      z-index: 3;
+    }
+
+    .shot-placeholder {
+      display: grid;
+      place-items: center;
+      gap: 13px;
+      color: rgba(141, 154, 170, 0.72);
+      font-family: var(--mono);
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+
+    .shot-placeholder .doc-icon {
+      position: relative;
+      width: 74px;
+      height: 94px;
+      border: 3px solid rgba(101, 231, 255, 0.35);
+    }
+
+    .shot-placeholder .doc-icon::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 23px;
+      height: 3px;
+      background: rgba(101, 231, 255, 0.34);
+      box-shadow: 0 17px 0 rgba(101, 231, 255, 0.24), 0 34px 0 rgba(101, 231, 255, 0.18);
+    }
+
+    .shot-placeholder small { color: rgba(141, 154, 170, 0.45); font-size: 12px; }
+    .shot-frame.dragover { border-color: var(--lime); box-shadow: 0 0 34px rgba(184, 255, 0, 0.18); }
+    .edit-mode .shot-frame { cursor: pointer; }
+    .edit-mode .shot-frame:hover { border-color: var(--cyan); box-shadow: 0 0 34px rgba(0, 229, 255, 0.16); }
+
+    .clear-shot {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 7;
+      display: none;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255, 86, 120, 0.72);
+      background: rgba(3, 7, 12, 0.92);
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .edit-mode .shot-frame.has-image .clear-shot { display: grid; place-items: center; }
+
+    /* Summary */
+    .flow-strip {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr 86px 1fr 86px 1fr;
+      align-items: center;
+      margin-top: 50px;
+    }
+
+    .flow-stage { position: relative; padding: 19px 0 22px; border-bottom: 4px solid var(--cyan); }
+    .flow-stage .stage-no { color: var(--cyan); font-family: var(--mono); font-size: 16px; letter-spacing: 0.1em; }
+    .flow-stage .stage-name { margin-top: 8px; color: var(--white); font-size: 42px; font-weight: 900; letter-spacing: -0.04em; }
+    .flow-stage::after { content: ""; position: absolute; right: 0; bottom: -8px; width: 12px; height: 12px; background: var(--magenta); }
+    .flow-arrow { color: rgba(101, 231, 255, 0.66); font-family: var(--mono); font-size: 40px; text-align: center; }
+
+    .summary-lower {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 0.94fr 1.06fr;
+      gap: 72px;
+      margin-top: 70px;
+    }
+
+    .extra-label,
+    .trace-label,
+    .section-label {
+      margin-bottom: 24px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+    }
+
+    .extra-list { display: grid; gap: 18px; }
+    .extra-item {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 14px;
+      align-items: baseline;
+      color: #cbd5df;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .extra-item .ok { color: var(--lime); font-family: var(--mono); }
+
+    .trace-panel {
+      position: relative;
+      padding: 0 0 0 34px;
+      border-left: 3px solid var(--cyan);
+    }
+
+    .trace-panel::before { content: ""; position: absolute; left: -8px; top: 0; width: 13px; height: 13px; background: var(--magenta); }
+    .trace-panel h3 { margin: 0 0 16px; font-size: 48px; line-height: 1.15; letter-spacing: -0.055em; }
+    .trace-panel p { margin: 0; max-width: 630px; color: #b5c0cc; font-size: 23px; line-height: 1.6; }
+
+    .trace-log {
+      display: grid;
+      gap: 7px;
+      margin-top: 22px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 14px;
+    }
+
+    .trace-log span::before { content: "[✓] "; color: var(--lime); }
+    .trace-log b { color: var(--cyan); font-weight: 700; }
+
+    /* Why it wins */
+    .why-grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.86fr);
+      gap: 68px;
+      margin-top: 42px;
+    }
+
+    .why-main { display: grid; gap: 34px; }
+    .why-claim {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 24px;
+      padding-bottom: 29px;
+      border-bottom: 1px solid rgba(101, 231, 255, 0.2);
+    }
+
+    .claim-no {
+      padding-top: 3px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .why-claim h3 { margin: 0 0 13px; font-size: 35px; line-height: 1.2; letter-spacing: -0.035em; }
+    .why-claim p { margin: 0; color: #afbbc7; font-size: 21px; line-height: 1.62; }
+    .why-claim strong { color: var(--white); }
+
+    .why-side {
+      display: grid;
+      align-content: start;
+      gap: 42px;
+      padding-left: 38px;
+      border-left: 2px solid rgba(0, 229, 255, 0.32);
+    }
+
+    .side-section { position: relative; }
+    .side-section::before { content: ""; position: absolute; left: -45px; top: 5px; width: 12px; height: 12px; background: var(--cyan); }
+    .side-section:last-child::before { background: var(--lime); }
+    .side-section h3 { margin: 0 0 16px; font-size: 29px; letter-spacing: -0.03em; }
+    .side-section p { margin: 0; color: #afbbc7; font-size: 19px; line-height: 1.62; }
+    .side-section p + p { margin-top: 11px; }
+    .code-line { display: inline-block; margin-top: 16px; color: var(--cyan); font-family: var(--mono); font-size: 16px; }
+
+    .closing-line {
+      position: absolute;
+      z-index: 3;
+      left: 76px;
+      right: 76px;
+      bottom: 47px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 15px;
+      border-top: 1px solid rgba(101, 231, 255, 0.22);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 16px;
+    }
+
+    .closing-line strong { color: var(--lime); font-family: var(--sans); font-size: 23px; }
+
+    /* HUD */
+    .deck-controls {
+      position: absolute;
+      z-index: 160;
+      right: 28px;
+      bottom: 22px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      pointer-events: none;
+    }
+
+    .deck-controls.visible {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+    }
+
+    .control-btn {
+      display: grid;
+      place-items: center;
+      min-width: 42px;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(101, 231, 255, 0.28);
+      background: rgba(2, 8, 14, 0.9);
+      color: #d8e4ee;
+      font-family: var(--mono);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .control-btn:hover,
+    .control-btn.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 18px rgba(0, 229, 255, 0.12); }
+
+    .progress {
+      position: absolute;
+      z-index: 170;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 4px;
+      background: rgba(101, 231, 255, 0.08);
+    }
+
+    .progress-bar {
+      width: 11.111%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.55);
+      transition: width 260ms ease;
+    }
+
+    .edit-toast {
+      position: absolute;
+      z-index: 180;
+      left: 50%;
+      bottom: 22px;
+      min-height: 42px;
+      padding: 10px 18px;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      background: rgba(2, 8, 14, 0.94);
+      font-family: var(--mono);
+      font-size: 14px;
+      transform: translate(-50%, 14px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 180ms ease;
+    }
+
+    .edit-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .help-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 220;
+      display: none;
+      place-items: center;
+      background: rgba(1, 4, 7, 0.82);
+      backdrop-filter: blur(10px);
+    }
+
+    .help-overlay.open { display: grid; }
+    .help-box { width: 720px; border: 2px solid var(--cyan); padding: 38px 42px; background: #04101a; box-shadow: 12px 12px 0 rgba(20, 123, 255, 0.75); }
+    .help-box h2 { margin: 0 0 26px; font-size: 34px; }
+    .help-grid { display: grid; grid-template-columns: 110px 1fr; gap: 15px 22px; font-family: var(--mono); font-size: 17px; }
+    .help-grid kbd { color: var(--cyan); font: inherit; }
+    .help-grid span { color: #b9c4ce; }
+
+    @keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes cursor { 0%, 48% { opacity: 1; } 49%, 100% { opacity: 0; } }
+    @keyframes caret { 0%, 48% { border-right-color: var(--cyan); } 49%, 100% { border-right-color: transparent; } }
+    @keyframes type-line { from { width: 0; } to { width: 62ch; } }
+    @keyframes glitch-one { 0%, 20%, 55% { opacity: .72; transform: translate(-7px, 1px); } 21%, 54%, 100% { opacity: 0; transform: none; } }
+    @keyframes glitch-two { 0%, 25%, 68% { opacity: .72; transform: translate(8px, -2px); } 26%, 67%, 100% { opacity: 0; transform: none; } }
+    @keyframes scan-flash { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+
+    @media print {
+      @page { size: 16in 9in; margin: 0; }
+      html, body { overflow: visible; width: auto; height: auto; background: #000; }
+      .deck { position: static; width: 1600px; height: auto; transform: none !important; box-shadow: none; overflow: visible; }
+      .deck::before, .deck::after, .deck-controls, .progress, .edit-toast, .help-overlay { display: none !important; }
+      .slide, .slide.active, .slide.past {
+        position: relative;
+        width: 1600px;
+        height: 900px;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+        page-break-after: always;
+        break-after: page;
+      }
+      .reveal { opacity: 1 !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" id="deck" aria-label="最终版黑客松路演演示文档">
+    <section class="slide cover active" data-slide="1" aria-label="封面">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <span class="pixel-corner corner-bl" aria-hidden="true"></span>
+      <div class="cover-top reveal" style="--i:0">
+        <div class="event-label">VIBE CODING FOR 准时下班</div>
+        <div class="team" aria-label="团队信息">
+          <span class="key">/team</span><span class="value team-name">对对对</span>
+          <span class="key">/leader</span><span class="value">kaguya</span>
+          <span class="key">/member</span><span class="value">海森</span>
+        </div>
+      </div>
+
+      <div class="cover-main">
+        <div>
+          <p class="product-kicker reveal" style="--i:1">> FINAL VERSION // DOCUMENT FORMAT AGENT</p>
+          <h1 class="product-name glitch reveal" style="--i:2" data-text="最终版">最终版</h1>
+          <h2 class="product-subtitle reveal" style="--i:3">可对齐模板的文档排版工具</h2>
+        </div>
+        <div class="cover-side reveal" style="--i:4">
+          <div class="side-label">/ONE_LINE_INTRO</div>
+          <p>从<strong>模板文件</strong>或<strong>排版规范</strong>中提取样式，并应用到目标文档。</p>
+        </div>
+      </div>
+
+      <div class="cover-bottom reveal" style="--i:5">
+        <div class="terminal-line"><span class="typing">format-agent --learn template.docx --apply target.docx --trace</span></div>
+        <div class="cover-tagline">一键 GET「最终版」· 准时下班不是梦</div>
+      </div>
+    </section>
+
+    <section class="slide demo-slide" data-slide="2" aria-label="Demo 演示">
+      <div class="demo-cross" aria-hidden="true"></div>
+      <h2 class="demo-title glitch" data-text="Demo 演示">Demo 演示</h2>
+    </section>
+
+    <section class="slide compare-slide" data-slide="3" aria-label="效果对比一">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/compare_01</div>
+          <h2 class="slide-title editable reveal" style="--i:1" data-edit-key="slide3-title">点击这里填写本页对比标题</h2>
+        </div>
+        <div class="slide-index"><strong>03</strong> / 09</div>
+      </header>
+      <div class="compare-grid">
+        <div class="shot-frame reveal" style="--i:2" data-shot-id="s3c1">
+          <div class="shot-head"><span class="editable" data-edit-key="s3c1-label">处理前</span><span class="shot-no">01</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:3" data-shot-id="s3c2">
+          <div class="shot-head"><span class="editable" data-edit-key="s3c2-label">模板 / 规范</span><span class="shot-no">02</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:4" data-shot-id="s3c3">
+          <div class="shot-head"><span class="editable" data-edit-key="s3c3-label">最终版</span><span class="shot-no">03</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide compare-slide" data-slide="4" aria-label="效果对比二">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/compare_02</div>
+          <h2 class="slide-title editable reveal" style="--i:1" data-edit-key="slide4-title">点击这里填写本页对比标题</h2>
+        </div>
+        <div class="slide-index"><strong>04</strong> / 09</div>
+      </header>
+      <div class="compare-grid">
+        <div class="shot-frame reveal" style="--i:2" data-shot-id="s4c1">
+          <div class="shot-head"><span class="editable" data-edit-key="s4c1-label">处理前</span><span class="shot-no">01</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:3" data-shot-id="s4c2">
+          <div class="shot-head"><span class="editable" data-edit-key="s4c2-label">模板 / 规范</span><span class="shot-no">02</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:4" data-shot-id="s4c3">
+          <div class="shot-head"><span class="editable" data-edit-key="s4c3-label">最终版</span><span class="shot-no">03</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide compare-slide" data-slide="5" aria-label="效果对比三">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/compare_03</div>
+          <h2 class="slide-title editable reveal" style="--i:1" data-edit-key="slide5-title">点击这里填写本页对比标题</h2>
+        </div>
+        <div class="slide-index"><strong>05</strong> / 09</div>
+      </header>
+      <div class="compare-grid">
+        <div class="shot-frame reveal" style="--i:2" data-shot-id="s5c1">
+          <div class="shot-head"><span class="editable" data-edit-key="s5c1-label">处理前</span><span class="shot-no">01</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:3" data-shot-id="s5c2">
+          <div class="shot-head"><span class="editable" data-edit-key="s5c2-label">模板 / 规范</span><span class="shot-no">02</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:4" data-shot-id="s5c3">
+          <div class="shot-head"><span class="editable" data-edit-key="s5c3-label">最终版</span><span class="shot-no">03</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide compare-slide" data-slide="6" aria-label="效果对比四">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/compare_04</div>
+          <h2 class="slide-title editable reveal" style="--i:1" data-edit-key="slide6-title">点击这里填写本页对比标题</h2>
+        </div>
+        <div class="slide-index"><strong>06</strong> / 09</div>
+      </header>
+      <div class="compare-grid">
+        <div class="shot-frame reveal" style="--i:2" data-shot-id="s6c1">
+          <div class="shot-head"><span class="editable" data-edit-key="s6c1-label">处理前</span><span class="shot-no">01</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:3" data-shot-id="s6c2">
+          <div class="shot-head"><span class="editable" data-edit-key="s6c2-label">模板 / 规范</span><span class="shot-no">02</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+        <div class="shot-frame reveal" style="--i:4" data-shot-id="s6c3">
+          <div class="shot-head"><span class="editable" data-edit-key="s6c3-label">最终版</span><span class="shot-no">03</span></div>
+          <div class="shot-body"><div class="shot-placeholder"><span class="doc-icon"></span><span>DROP SCREENSHOT</span><small>按 E 进入编辑模式</small></div></div>
+          <button class="clear-shot" type="button" aria-label="删除截图">×</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide summary-slide" data-slide="7" aria-label="功能总结">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/summary</div>
+          <h2 class="slide-title reveal" style="--i:1">无聊的工作交给我，你快<strong>准时下班</strong></h2>
+        </div>
+        <div class="slide-index"><strong>07</strong> / 09</div>
+      </header>
+
+      <div class="flow-strip">
+        <div class="flow-stage reveal" style="--i:2"><div class="stage-no">01 / EXTRACT</div><div class="stage-name">提取样式</div></div>
+        <div class="flow-arrow reveal" style="--i:3">→</div>
+        <div class="flow-stage reveal" style="--i:4"><div class="stage-no">02 / BUILD</div><div class="stage-name">建立样式</div></div>
+        <div class="flow-arrow reveal" style="--i:5">→</div>
+        <div class="flow-stage reveal" style="--i:6"><div class="stage-no">03 / APPLY</div><div class="stage-name">应用样式</div></div>
+      </div>
+
+      <div class="summary-lower">
+        <div class="reveal" style="--i:7">
+          <div class="extra-label">/EXTRA_FUNCTIONS</div>
+          <div class="extra-list">
+            <div class="extra-item"><span class="ok">✓</span><span>支持文档前后对比</span></div>
+            <div class="extra-item"><span class="ok">✓</span><span>高级编辑可自定义样式集</span></div>
+            <div class="extra-item"><span class="ok">✓</span><span>输出可追踪的修改报告</span></div>
+            <div class="extra-item"><span class="ok">✓</span><span>保留 AI 编辑完整批注</span></div>
+          </div>
+        </div>
+
+        <div class="trace-panel reveal" style="--i:8">
+          <div class="trace-label">[ TRACEABLE ]</div>
+          <h3>用户可以放心知道<br><span class="accent">AI 改了什么</span></h3>
+          <p>角色、样式、修改字段与内容摘要逐段留痕。<br>消除 AI 黑盒顾虑。</p>
+          <div class="trace-log" aria-label="修改报告示例">
+            <span>paragraph_01 → role=<b>title</b> → style=<b>标题</b></span>
+            <span>paragraph_04 → font / spacing / indent → <b>updated</b></span>
+            <span>report.md → all changes → <b>recorded</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide why-slide" data-slide="8" aria-label="项目亮点与推广潜力">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <header class="slide-head">
+        <div>
+          <div class="route reveal" style="--i:0">/why_it_wins</div>
+          <h2 class="slide-title reveal" style="--i:1"> AI 赋能<strong>通用</strong>文档排版</h2>
+        </div>
+        <div class="slide-index"><strong>08</strong> / 09</div>
+      </header>
+
+      <div class="why-grid">
+        <div class="why-main">
+          <article class="why-claim reveal" style="--i:2">
+            <div class="claim-no">01</div>
+            <div>
+              <h3>从语义层面理解文档结构</h3>
+              <p>跳出传统文本规则的固定匹配。大语言模型识别标题、正文、落款等结构，<strong>模板不受业务领域限制</strong>，适应能力更强、通用性更高。</p>
+            </div>
+          </article>
+          <article class="why-claim reveal" style="--i:3">
+            <div class="claim-no">02</div>
+            <div>
+              <h3>定义样式，再可靠落地</h3>
+              <p>AI 只输出可审阅的结构化结果，确定性脚本负责修改 DOCX。用户需要微调时，只改样式即可联动全文，<strong>持续节约工作量</strong>。</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="why-side">
+          <section class="side-section reveal" style="--i:4">
+            <div class="section-label">/推广潜力</div>
+            <h3>天生适合 Agent 平台</h3>
+            <p>LLM 能力由平台提供，用户无需额外配置模型。</p>
+            <p>核心功能全部 CLI 化，可通过 Skill 直接调用。</p>
+            <span class="code-line">$ agent run format-document</span>
+          </section>
+          <section class="side-section reveal" style="--i:5">
+            <div class="section-label lime">/盈利点</div>
+            <h3>模板增值，不锁核心能力</h3>
+            <p>围绕优质行业模板收费。收费属于增量功能，不影响核心排版能力使用。</p>
+          </section>
+        </aside>
+      </div>
+
+      <div class="closing-line reveal" style="--i:6">
+        <span>FORMAT AGENT // 对对对</span>
+      </div>
+    </section>
+
+    <section class="slide cover end-slide" data-slide="9" aria-label="结尾页">
+      <span class="pixel-corner corner-tr" aria-hidden="true"></span>
+      <span class="pixel-corner corner-bl" aria-hidden="true"></span>
+      <div class="cover-top reveal" style="--i:0">
+        <div class="event-label">VIBE CODING FOR 准时下班</div>
+        <div class="team" aria-label="团队信息">
+          <span class="key">/team</span><span class="value team-name">对对对</span>
+          <span class="key">/leader</span><span class="value">kaguya</span>
+          <span class="key">/member</span><span class="value">海森</span>
+        </div>
+      </div>
+
+      <div class="cover-main end-main">
+        <div>
+          <p class="product-kicker reveal" style="--i:1">> MISSION COMPLETE // ENDING </p>
+          <h1 class="end-title glitch reveal" style="--i:2" data-text="和重复劳动说拜拜">和重复劳动说 👋 👋</h1>
+          <h2 class="end-subtitle reveal" style="--i:3">一键 GET <span class="final-word">「最终版」</span> · 准时下班不是梦</h2>
+        </div>
+      </div>
+
+      <div class="cover-bottom reveal" style="--i:4">
+        <div class="terminal-line"><span class="typing">format-agent --status done --overtime false --clock 18:00</span></div>
+        <div class="cover-tagline">MISSION COMPLETE // </div>
+      </div>
+    </section>
+
+    <div class="deck-controls visible" id="controls" aria-label="演示控制">
+      <button class="control-btn" id="prevBtn" type="button" aria-label="上一页">←</button>
+      <button class="control-btn" id="counterBtn" type="button" aria-label="当前页">01 / 09</button>
+      <button class="control-btn" id="nextBtn" type="button" aria-label="下一页">→</button>
+      <button class="control-btn" id="editBtn" type="button" aria-label="切换编辑模式">E 编辑</button>
+      <button class="control-btn" id="fullBtn" type="button" aria-label="全屏">F 全屏</button>
+      <button class="control-btn" id="helpBtn" type="button" aria-label="帮助">?</button>
+    </div>
+
+    <div class="progress" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="edit-toast" id="toast" role="status"></div>
+
+    <div class="help-overlay" id="helpOverlay" aria-hidden="true">
+      <div class="help-box">
+        <h2>演示控制</h2>
+        <div class="help-grid">
+          <kbd>← / →</kbd><span>上一页 / 下一页</span>
+          <kbd>Space</kbd><span>下一页</span>
+          <kbd>Home / End</kbd><span>第一页 / 最后一页</span>
+          <kbd>F</kbd><span>进入或退出全屏</span>
+          <kbd>E</kbd><span>编辑对比页标题，并拖入截图</span>
+          <kbd>?</kbd><span>打开或关闭本帮助</span>
+          <kbd>Esc</kbd><span>退出编辑或关闭帮助</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <input id="imagePicker" type="file" accept="image/*" hidden />
+
+  <script>
+    (function () {
+      "use strict";
+
+      var DESIGN_W = 1600;
+      var DESIGN_H = 900;
+      var deck = document.getElementById("deck");
+      var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+      var controls = document.getElementById("controls");
+      var progressBar = document.getElementById("progressBar");
+      var counterBtn = document.getElementById("counterBtn");
+      var editBtn = document.getElementById("editBtn");
+      var imagePicker = document.getElementById("imagePicker");
+      var helpOverlay = document.getElementById("helpOverlay");
+      var toast = document.getElementById("toast");
+      var current = 0;
+      var editMode = false;
+      var activeShot = null;
+      var hudTimer = null;
+      var toastTimer = null;
+
+      function fitDeck() {
+        var scale = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+        deck.style.transform = "translate(-50%, -50%) scale(" + scale + ")";
+      }
+
+      function isDeckFullscreen() {
+        return document.fullscreenElement === deck;
+      }
+
+      function showHud() {
+        controls.classList.add("visible");
+        window.clearTimeout(hudTimer);
+        if (isDeckFullscreen()) {
+          hudTimer = window.setTimeout(function () {
+            controls.classList.remove("visible");
+          }, 3000);
+        }
+      }
+
+      function syncFullscreenControls() {
+        window.clearTimeout(hudTimer);
+        if (isDeckFullscreen()) {
+          if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+          controls.classList.remove("visible");
+        } else {
+          controls.classList.add("visible");
+        }
+      }
+
+      function flash(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(function () { toast.classList.remove("show"); }, 1900);
+      }
+
+      function goTo(index, updateHash) {
+        var next = Math.max(0, Math.min(slides.length - 1, index));
+        current = next;
+        slides.forEach(function (slide, i) {
+          slide.classList.toggle("active", i === current);
+          slide.classList.toggle("past", i < current);
+          slide.setAttribute("aria-hidden", i === current ? "false" : "true");
+        });
+        counterBtn.textContent = String(current + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+        progressBar.style.width = ((current + 1) / slides.length * 100) + "%";
+        document.body.setAttribute("data-slide", String(current + 1));
+        if (updateHash !== false) {
+          history.replaceState(null, "", "#" + (current + 1));
+        }
+        if (!isDeckFullscreen()) showHud();
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          if (typeof deck.requestFullscreen !== "function") {
+            flash("当前浏览器不支持页面全屏，请使用浏览器全屏快捷键");
+            return;
+          }
+          deck.requestFullscreen().catch(function () { flash("浏览器未允许全屏，请使用系统全屏快捷键"); });
+        } else {
+          document.exitFullscreen();
+        }
+      }
+
+      function setEditMode(enabled) {
+        editMode = enabled;
+        document.body.classList.toggle("edit-mode", editMode);
+        editBtn.classList.toggle("active", editMode);
+        editBtn.textContent = editMode ? "E 完成" : "E 编辑";
+        document.querySelectorAll(".editable").forEach(function (el) {
+          el.setAttribute("contenteditable", editMode ? "true" : "false");
+          el.setAttribute("spellcheck", "false");
+        });
+        if (!isDeckFullscreen()) showHud();
+        flash(editMode ? "编辑模式：可修改标题或点击 / 拖入截图" : "编辑已保存到当前浏览器");
+      }
+
+      function toggleHelp(force) {
+        var open = typeof force === "boolean" ? force : !helpOverlay.classList.contains("open");
+        helpOverlay.classList.toggle("open", open);
+        helpOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+      }
+
+      function persistText(el) {
+        var key = el.getAttribute("data-edit-key");
+        if (key) localStorage.setItem("final-version:" + key, el.textContent.trim());
+      }
+
+      document.querySelectorAll(".editable").forEach(function (el) {
+        var key = el.getAttribute("data-edit-key");
+        var saved = key ? localStorage.getItem("final-version:" + key) : null;
+        if (saved) el.textContent = saved;
+        el.addEventListener("input", function () { persistText(el); });
+        el.addEventListener("blur", function () { persistText(el); });
+        el.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            el.blur();
+          }
+        });
+      });
+
+      var dbPromise = new Promise(function (resolve) {
+        if (!("indexedDB" in window)) return resolve(null);
+        var request = indexedDB.open("final-version-roadshow", 1);
+        request.onupgradeneeded = function () {
+          if (!request.result.objectStoreNames.contains("shots")) request.result.createObjectStore("shots");
+        };
+        request.onsuccess = function () { resolve(request.result); };
+        request.onerror = function () { resolve(null); };
+      });
+
+      function withShotStore(mode, action) {
+        return dbPromise.then(function (db) {
+          if (!db) return null;
+          return new Promise(function (resolve) {
+            var tx = db.transaction("shots", mode);
+            var store = tx.objectStore("shots");
+            action(store);
+            tx.oncomplete = function () { resolve(true); };
+            tx.onerror = function () { resolve(false); };
+          });
+        });
+      }
+
+      function renderShot(frame, dataUrl) {
+        var body = frame.querySelector(".shot-body");
+        var existing = body.querySelector("img");
+        if (!dataUrl) {
+          if (existing) existing.remove();
+          frame.classList.remove("has-image");
+          return;
+        }
+        var img = existing || document.createElement("img");
+        img.alt = "对比截图";
+        img.src = dataUrl;
+        if (!existing) body.appendChild(img);
+        frame.classList.add("has-image");
+      }
+
+      function saveShot(frame, file) {
+        if (!file || !file.type || file.type.indexOf("image/") !== 0) {
+          flash("请选择 PNG、JPG 或其他图片文件");
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var id = frame.getAttribute("data-shot-id");
+          renderShot(frame, reader.result);
+          withShotStore("readwrite", function (store) { store.put(reader.result, id); });
+          flash("截图已放入 " + id.toUpperCase());
+        };
+        reader.readAsDataURL(file);
+      }
+
+      document.querySelectorAll(".shot-frame").forEach(function (frame) {
+        var id = frame.getAttribute("data-shot-id");
+        dbPromise.then(function (db) {
+          if (!db) return;
+          var tx = db.transaction("shots", "readonly");
+          var request = tx.objectStore("shots").get(id);
+          request.onsuccess = function () { if (request.result) renderShot(frame, request.result); };
+        });
+
+        frame.addEventListener("click", function (event) {
+          if (!editMode || event.target.closest(".clear-shot") || event.target.closest("[contenteditable=true]")) return;
+          activeShot = frame;
+          imagePicker.value = "";
+          imagePicker.click();
+        });
+
+        frame.addEventListener("dragover", function (event) {
+          if (!editMode) return;
+          event.preventDefault();
+          frame.classList.add("dragover");
+        });
+
+        frame.addEventListener("dragleave", function () { frame.classList.remove("dragover"); });
+        frame.addEventListener("drop", function (event) {
+          if (!editMode) return;
+          event.preventDefault();
+          frame.classList.remove("dragover");
+          saveShot(frame, event.dataTransfer.files[0]);
+        });
+
+        frame.querySelector(".clear-shot").addEventListener("click", function (event) {
+          event.stopPropagation();
+          renderShot(frame, null);
+          withShotStore("readwrite", function (store) { store.delete(id); });
+          flash("已移除截图");
+        });
+      });
+
+      imagePicker.addEventListener("change", function () {
+        if (activeShot) saveShot(activeShot, imagePicker.files[0]);
+      });
+
+      document.getElementById("prevBtn").addEventListener("click", function () { goTo(current - 1); });
+      document.getElementById("nextBtn").addEventListener("click", function () { goTo(current + 1); });
+      document.getElementById("editBtn").addEventListener("click", function () { setEditMode(!editMode); });
+      document.getElementById("fullBtn").addEventListener("click", toggleFullscreen);
+      document.getElementById("helpBtn").addEventListener("click", function () { toggleHelp(); });
+      counterBtn.addEventListener("click", function () { flash("← → 翻页 · F 全屏 · E 编辑"); });
+      helpOverlay.addEventListener("click", function (event) { if (event.target === helpOverlay) toggleHelp(false); });
+
+      document.addEventListener("keydown", function (event) {
+        var target = event.target;
+        var typing = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+        if (typing) {
+          if (event.key === "Escape") { target.blur(); setEditMode(false); }
+          return;
+        }
+        if (helpOverlay.classList.contains("open")) {
+          if (event.key === "Escape" || event.key === "?") toggleHelp(false);
+          return;
+        }
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault(); goTo(current + 1);
+        } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault(); goTo(current - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault(); goTo(0);
+        } else if (event.key === "End") {
+          event.preventDefault(); goTo(slides.length - 1);
+        } else if (event.key.toLowerCase() === "f") {
+          event.preventDefault(); toggleFullscreen();
+        } else if (event.key.toLowerCase() === "e") {
+          event.preventDefault(); setEditMode(!editMode);
+        } else if (event.key === "?") {
+          event.preventDefault(); toggleHelp();
+        } else if (event.key === "Escape" && editMode) {
+          setEditMode(false);
+        }
+      });
+
+      var touchStartX = null;
+      deck.addEventListener("touchstart", function (event) { touchStartX = event.changedTouches[0].clientX; }, { passive: true });
+      deck.addEventListener("touchend", function (event) {
+        if (touchStartX === null || editMode) return;
+        var delta = event.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(delta) > 60) goTo(current + (delta < 0 ? 1 : -1));
+        touchStartX = null;
+      }, { passive: true });
+
+      window.addEventListener("resize", fitDeck);
+      window.addEventListener("mousemove", showHud, { passive: true });
+      document.addEventListener("fullscreenchange", syncFullscreenControls);
+      window.addEventListener("hashchange", function () {
+        var value = parseInt(location.hash.slice(1), 10);
+        if (!isNaN(value)) goTo(value - 1, false);
+      });
+
+      fitDeck();
+      var initial = parseInt(location.hash.slice(1), 10);
+      goTo(isNaN(initial) ? 0 : initial - 1, false);
+      window.setTimeout(showHud, 250);
+    }());
+  </script>
+</body>
+</html>
