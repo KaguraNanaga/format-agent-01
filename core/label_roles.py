@@ -11,8 +11,12 @@ BATCH_SIZE = 40
 
 # 中文公文标题编号惯例（确定性识别，不走 LLM，解决二级标题识别不稳）：
 #   一、    → heading_1    （一）  → heading_2    1. 或 1、 → heading_3
+# 图表题注（论文/招股书类文档）：
+#   图1 xxx / 图 2-1 xxx → figure_caption    表1 xxx / 表 2-1 xxx → table_caption
 # 仅当行较短且不以句读结尾时才认定为标题（正文句也可能以"一、"开头）。
 _HEADING_PATTERNS = [
+    (re.compile(r"^图\s*\d+([-.]\d+)?"), "figure_caption"),
+    (re.compile(r"^表\s*\d+([-.]\d+)?"), "table_caption"),
     (re.compile(r"^[一二三四五六七八九十百]+、"), "heading_1"),
     (re.compile(r"^[（(][一二三四五六七八九十]+[）)]"), "heading_2"),
     (re.compile(r"^\d{1,2}[.、]"), "heading_3"),
@@ -38,6 +42,8 @@ PROMPT_TEMPLATE = """你是文档结构标注器。给每一段标注角色，�
 日期含"年/月/日"; 标题通常在最前且独立成行。
 中文标题层级惯例: "一、"开头多为一级标题(heading_1)，"（一）"开头多为二级标题
 (heading_2)，"1."或"1、"开头多为三级标题(heading_3)；标题行通常较短且不以句号结尾。
+"图1 xxx"/"图2-1 xxx"这类独立成行的是图片题注(figure_caption)，"表1 xxx"是表格题注
+(table_caption)。
 输入是 JSON 数组 [{{idx, text, size_pt, bold, alignment}}]，
 输出严格为 {{"roles": [{{"idx": 0, "role": "title"}}, ...]}} 的 JSON 对象，
 roles 数组必须覆盖所有输入 idx，不多不少。

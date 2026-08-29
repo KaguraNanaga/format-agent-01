@@ -48,14 +48,24 @@ def _apply_role_to_paragraph(p, rule):
     if rule.get("alignment") in _ALIGNMENT:
         p.alignment = _ALIGNMENT[rule["alignment"]]
         changed.append("alignment")
-    # 3) 行距
+    # 3) 行距与段前段后
     ls = rule.get("line_spacing")
-    if isinstance(ls, dict) and ls.get("pt") is not None:
-        if ls.get("type") == "exact":
-            set_paragraph_fixed_spacing(p, line_pt=ls["pt"])
-        else:  # multiple：python-docx 原生多倍行距
-            p.paragraph_format.line_spacing = float(ls["pt"])
+    before_pt = rule.get("space_before_pt")
+    after_pt = rule.get("space_after_pt")
+    if isinstance(ls, dict) and ls.get("pt") is not None and ls.get("type") == "multiple":
+        # 多倍行距走 python-docx 原生属性
+        p.paragraph_format.line_spacing = float(ls["pt"])
         changed.append("line_spacing")
+        ls = None
+    exact_pt = ls.get("pt") if isinstance(ls, dict) else None
+    if exact_pt is not None or before_pt is not None or after_pt is not None:
+        set_paragraph_fixed_spacing(p, line_pt=exact_pt, before_pt=before_pt, after_pt=after_pt)
+        if exact_pt is not None:
+            changed.append("line_spacing")
+        if before_pt is not None:
+            changed.append("space_before_pt")
+        if after_pt is not None:
+            changed.append("space_after_pt")
     # 4) 首行缩进（按字符）
     if rule.get("first_line_indent_chars") is not None:
         set_first_line_indent_chars(p, rule["first_line_indent_chars"])

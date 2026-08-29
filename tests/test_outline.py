@@ -27,6 +27,10 @@ cases = {
     "（三）回报预测": "heading_2",
     "1. 经济效益": "heading_3",
     "1、直接经济效益": "heading_3",
+    "图1 系统架构图": "figure_caption",
+    "图 2-1 技术路线图": "figure_caption",
+    "表1 主要财务数据": "table_caption",
+    "表 3-2 对比分析表": "table_caption",
     "为深入贯彻落实上级决策部署，现就有关工作通知如下。": None,  # 正文
     "一、项目背景的基本情况如下。": None,  # 以句号结尾，按正文处理
     "": None,
@@ -40,7 +44,10 @@ print("1. regex_role 单测通过（%d 例）" % len(cases))
 with open(os.path.join(ROOT, "assets", "spec_std.json"), encoding="utf-8") as f:
     spec = json.load(f)
 validate_spec(spec)
-print("2. spec_std.json 校验通过")
+with open(os.path.join(ROOT, "assets", "spec_thesis_std.json"), encoding="utf-8") as f:
+    thesis_spec = json.load(f)
+validate_spec(thesis_spec)
+print("2. spec_std.json / spec_thesis_std.json 校验通过")
 
 # ---- 3. 端到端：构造含二级标题的文档，apply 后验证大纲级别与字体 ----
 from docx import Document as NewDoc

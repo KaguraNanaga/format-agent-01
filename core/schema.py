@@ -8,7 +8,8 @@
 # 所以这里只对 Base 角色做提示，不拒绝未知键。
 BASE_ROLES = [
     "title", "subtitle", "heading_1", "heading_2", "heading_3",
-    "body", "signature", "date", "attachment_label", "attachment", "other",
+    "body", "signature", "date", "attachment_label", "attachment",
+    "figure_caption", "table_caption", "other",
 ]
 
 ROLE_REQUIRED_FIELDS = ["font_eastasia", "size_pt", "alignment"]
@@ -90,6 +91,10 @@ def validate_spec(spec):
             v = rule.get("outline_level")
             if v is not None and (not isinstance(v, int) or isinstance(v, bool) or not (0 <= v <= 8)):
                 errors.append(f"roles.{role}.outline_level={v!r} 非法：必须是 0~8 的整数")
+            for f in ("space_before_pt", "space_after_pt"):
+                v = rule.get(f)
+                if v is not None and (not _is_num(v) or not (0 <= v <= 100)):
+                    errors.append(f"roles.{role}.{f}={v!r} 非法：必须是 0~100 磅的数值")
 
     if errors:
         raise SpecValidationError(errors)
