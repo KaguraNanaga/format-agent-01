@@ -8,7 +8,7 @@
 
 | 段落 | 角色 | Word 样式 | 改动字段 | 内容摘要 |
 |---|---|---|---|---|
-| 0 | title | 文档标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment | 关于建立公司数字化转型专家库的汇报 |
+| 0 | title | 文档标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing | 关于建立公司数字化转型专家库的汇报 |
 | 1 | subtitle | 文档副标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, space_after_pt | （议题提交人：王丽） |
 | 2 | body | 格式正文 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, first_line_indent_chars | 为推进公司数字化转型工作，充分发挥专家在技术评审、方案论证和 |
 | 3 | body | 格式正文 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, first_line_indent_chars | 专家库拟由内部专家和外部专家组成，内部专家从各部门技术骨干中 |

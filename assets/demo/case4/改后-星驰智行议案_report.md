@@ -8,7 +8,7 @@
 
 | 段落 | 角色 | Word 样式 | 改动字段 | 内容摘要 |
 |---|---|---|---|---|
-| 0 | title | 文档标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment | 关于向华洲市云湖区启明产业投资基金合伙企业（有限合伙）委派投 |
+| 0 | title | 文档标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing | 关于向华洲市云湖区启明产业投资基金合伙企业（有限合伙）委派投 |
 | 1 | subtitle | 文档副标题 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, space_after_pt | （议题提交人：王  明） |
 | 2 | heading_1 | 标题 1 | paragraph_style, automatic_numbering, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, first_line_indent_chars | 背景 |
 | 3 | body | 格式正文 | paragraph_style, font_eastasia, font_ascii, size_pt, bold, alignment, line_spacing, first_line_indent_chars | 为贯彻落实云湖区“十四五”发展规划，推动云湖区数字经济产业整 |
