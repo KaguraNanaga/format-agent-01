@@ -1,4 +1,4 @@
-# 格式排版 Agent（Format Agent）
+# 最终版 · 格式排版 Agent（Format Agent）
 
 > **本仓库为黑客松完整版（GUI 演示界面 + 演示案例 + 路演页），已归档。**
 > 日常使用的 Skill 版本已独立成库，请移步 **[format-agent-skill](https://github.com/KaguraNanaga/format-agent-skill)**——仓库即技能，clone 即可安装。
