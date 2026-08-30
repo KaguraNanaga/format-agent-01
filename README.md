@@ -1,5 +1,8 @@
 # 格式排版 Agent（Format Agent）
 
+> **本仓库为黑客松完整版（GUI 演示界面 + 演示案例 + 路演页），已归档。**
+> 日常使用的 Skill 版本已独立成库，请移步 **[format-agent-skill](https://github.com/KaguraNanaga/format-agent-skill)**——仓库即技能，clone 即可安装。
+
 > 理解归 AI，动手归代码，中间用 JSON 交接。
 
 给它一份**格式规范**（自然语言规范文字，或一份排好版的 Word 模板），再给它一份**格式混乱的 docx**——Agent 自主完成理解规范、识别文档结构、逐段改写格式，输出可直接交付的 Word 文档。
