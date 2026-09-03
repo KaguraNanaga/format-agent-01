@@ -1,7 +1,12 @@
 # 最终版 · 格式排版 Agent（Format Agent）
 
-> **本仓库为黑客松完整版（GUI 演示界面 + 演示案例 + 路演页），已归档。**
-> 日常使用的 Skill 版本已独立成库，请移步 **[format-agent-skill](https://github.com/KaguraNanaga/format-agent-skill)**——仓库即技能，clone 即可安装。
+> [!IMPORTANT]
+> **本仓库是黑客松期间完成的初始版本，仅作为项目历史保留，后续不再维护。**
+>
+> - 直接使用图形工作台：**[format-agent-workbench](https://github.com/KaguraNanaga/format-agent-workbench)**
+> - 在 Agent 中安装 Skill：**[format-agent-skill](https://github.com/KaguraNanaga/format-agent-skill)**
+>
+> 下方 README 保留了当时的实现与演示记录，安装和使用请以前面两个新仓库为准。
 
 > 理解归 AI，动手归代码，中间用 JSON 交接。
 
@@ -102,10 +107,9 @@ python main.py --spec assets/spec.txt --target assets/messy.docx --out out/排�
 
 ### 作为 Skill 接入你的 Agent（推荐）
 
-本项目同时是一个自包含的 Agent Skill（`skills/format-agent/`）。不需要部署任何界面，
-直接把仓库链接发给你的 Agent 即可安装调用，例如对它说：
+Skill 已经在独立仓库中继续维护。直接把新仓库链接发给你的 Agent 即可安装调用，例如对它说：
 
-> 帮我安装这个 skill：https://github.com/KaguraNanaga/format-agent-01/tree/main/skills/format-agent
+> 帮我安装这个 skill：https://github.com/KaguraNanaga/format-agent-skill
 > 然后按《规范文字.txt》的要求，把"待排版.docx"重排一下。
 
 Agent 会读取其中的 SKILL.md，自行完成依赖安装、规范理解和排版执行，
